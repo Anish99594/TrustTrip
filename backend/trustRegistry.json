@@ -1,0 +1,25 @@
+{
+  "issuerDID": "did:cheqd:testnet:1faa495a-9b9f-4349-b729-ee0022b5658a",
+  "verifierDID": "did:cheqd:testnet:5deddbc5-6b9f-42cd-ab04-0c6156decf7d",
+  "schemaDID": "did:cheqd:testnet:placeholder-schema-123",
+  "registry": {
+    "name": "TravelBookingTrustRegistry",
+    "description": "Trust registry for travel booking credentials",
+    "participants": [
+      {
+        "role": "issuer",
+        "did": "did:cheqd:testnet:1faa495a-9b9f-4349-b729-ee0022b5658a"
+      },
+      {
+        "role": "verifier",
+        "did": "did:cheqd:testnet:5deddbc5-6b9f-42cd-ab04-0c6156decf7d"
+      }
+    ],
+    "schemas": [
+      {
+        "id": "did:cheqd:testnet:placeholder-schema-123",
+        "name": "TravelBookingCredential"
+      }
+    ]
+  }
+}

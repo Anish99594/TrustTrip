@@ -1,0 +1,16 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "TravelBookingCredential",
+    "type": "object",
+    "properties": {
+      "bookingType": { "type": "string", "enum": ["flight", "hotel"] },
+      "provider": { "type": "string" },
+      "providerDID": { "type": "string" },
+      "destination": { "type": "string" },
+      "price": { "type": "number" },
+      "dates": { "type": "string" },
+      "bookingId": { "type": "string" },
+      "travelers": { "type": "integer" }
+    },
+    "required": ["bookingType", "provider", "providerDID", "destination", "price", "dates", "bookingId", "travelers"]
+  }
