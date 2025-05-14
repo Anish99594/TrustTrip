@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
+import WalletBalance from './WalletBalance';
+import { FaWallet, FaCheckCircle } from 'react-icons/fa';
 
 const WalletConnect = ({ onConnect }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletInstalled, setWalletInstalled] = useState(false);
   const [error, setError] = useState(null);
   const [connectionStep, setConnectionStep] = useState(1);
+  const [connectedAddress, setConnectedAddress] = useState(null);
+  const [showWalletBalance, setShowWalletBalance] = useState(false);
 
   useEffect(() => {
     if (window.leap) {
@@ -95,6 +99,12 @@ const WalletConnect = ({ onConnect }) => {
       const address = key.bech32Address;
 
       setConnectionStep(5);
+      setConnectedAddress(address);
+      
+      // We don't need to get the balance directly as the Leap wallet handles this
+      // Just log the successful connection
+      console.log('Wallet connected successfully:', address);
+      
       onConnect(address);
     } catch (error) {
       setError(`Failed to connect wallet: ${error.message}`);
@@ -123,37 +133,89 @@ const WalletConnect = ({ onConnect }) => {
     }
   };
 
+  const disconnectWallet = () => {
+    setConnectedAddress(null);
+    setShowWalletBalance(false);
+  };
+
   return (
     <div className="card wallet-connect">
-      <div className="wallet-connect-header">
-        <div className="wallet-icon-container">
-          <span className="wallet-large-icon">🔐</span>
-        </div>
-        <h2 className="card-title">Connect Your Wallet</h2>
-        <p className="wallet-subtitle">
-          Secure your travel bookings with verifiable credentials
-        </p>
-      </div>
-      <div className="wallet-connect-action">
-        <button
-          className="btn btn-primary wallet-connect-btn"
-          onClick={connectWallet}
-          disabled={isConnecting || !walletInstalled}
-        >
-          {isConnecting ? (
-            <>
-              <span className="spinner"></span>
-              {getStepText()}
-            </>
-          ) : (
-            <>
-              <span className="btn-icon">🔗</span>
-              Connect Wallet
-            </>
+      {!connectedAddress ? (
+        // Wallet not connected - show connect UI
+        <>
+          <div className="wallet-connect-header">
+            <div className="wallet-icon-container">
+              <span className="wallet-large-icon">🔐</span>
+            </div>
+            <h2 className="card-title">Connect Your Wallet</h2>
+            <p className="wallet-subtitle">
+              Secure your travel bookings with verifiable credentials
+            </p>
+          </div>
+          <div className="wallet-connect-action">
+            <button
+              className="btn btn-primary wallet-connect-btn"
+              onClick={connectWallet}
+              disabled={isConnecting || !walletInstalled}
+            >
+              {isConnecting ? (
+                <>
+                  <span className="spinner"></span>
+                  {getStepText()}
+                </>
+              ) : (
+                <>
+                  <span className="btn-icon">🔗</span>
+                  Connect Wallet
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      ) : (
+        // Wallet connected - show wallet info and balance
+        <div className="wallet-connect-container">
+          <div className="wallet-connect-header">
+            <div className="wallet-icon-container">
+              <span className="wallet-large-icon">💼</span>
+            </div>
+            <h2 className="card-title">Wallet Connected</h2>
+            <p className="wallet-subtitle">
+              Your wallet is ready for secure travel bookings
+            </p>
+          </div>
+          
+          <div className="wallet-info-section">
+            <div className="wallet-info-icon">
+              <FaWallet />
+            </div>
+            <div className="wallet-info-details">
+              <div className="wallet-info-address">
+                {connectedAddress.substring(0, 8)}...{connectedAddress.substring(connectedAddress.length - 6)}
+              </div>
+              <div className="wallet-info-status">
+                <FaCheckCircle /> Connected
+              </div>
+            </div>
+            <button className="wallet-disconnect" onClick={disconnectWallet}>
+              Disconnect
+            </button>
+          </div>
+          
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => setShowWalletBalance(!showWalletBalance)}
+            style={{ marginTop: '1rem' }}
+          >
+            {showWalletBalance ? 'Hide Wallet Details' : 'Show Wallet Details'}
+          </button>
+          
+          {showWalletBalance && (
+            <WalletBalance walletAddress={connectedAddress} />
           )}
-        </button>
-      </div>
-      {!walletInstalled && (
+        </div>
+      )}
+      {!walletInstalled && !connectedAddress && (
         <div className="wallet-warning">
           <div className="warning-icon">⚠️</div>
           <div className="warning-content">

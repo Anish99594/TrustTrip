@@ -102,7 +102,7 @@ const BookingResult = ({ result, onClose }) => {
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Price:</span>
-                  <span className="detail-value price-value">${details.price}</span>
+                  <span className="detail-value price-value">{details.price} {details.currency || 'CHEQ'}</span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Travelers:</span>

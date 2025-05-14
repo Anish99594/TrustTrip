@@ -66,7 +66,11 @@ function App() {
                     <WalletConnect onConnect={handleWalletConnect} />
                   ) : (
                     <>
-                      <BookingForm onSubmit={handleBookingSubmit} isLoading={isLoading} />
+                      <BookingForm 
+                        onSubmit={handleBookingSubmit} 
+                        isLoading={isLoading} 
+                        walletAddress={walletAddress} 
+                      />
                     </>
                   )}
                 </div>
