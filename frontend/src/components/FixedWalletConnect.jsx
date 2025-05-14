@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import WalletBalance from './WalletBalance';
 import { FaWallet, FaCheckCircle } from 'react-icons/fa';
+import './styles/WalletStyles.css';
 
-const WalletConnect = ({ onConnect }) => {
+const FixedWalletConnect = ({ onConnect }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletInstalled, setWalletInstalled] = useState(false);
   const [error, setError] = useState(null);
@@ -167,22 +168,47 @@ const WalletConnect = ({ onConnect }) => {
   };
 
   return (
-    <div className="wallet-container">
+    <div className="card wallet-connect">
       {!connectedAddress ? (
-        <div className="wallet-connect-section">
-          <button 
-            className="btn btn-primary wallet-connect-btn" 
-            onClick={connectWallet}
-            disabled={isConnecting}
-          >
-            <span className="btn-icon"><FaWallet /></span>
-            {isConnecting ? getStepText() : 'Connect Wallet'}
-          </button>
-        </div>
+        // Wallet not connected - show connect UI
+        <>
+          <div className="wallet-connect-header">
+            <div className="wallet-icon-container">
+              <span className="wallet-large-icon">🔐</span>
+            </div>
+            <h2 className="card-title">Connect Your Wallet</h2>
+            <p className="wallet-subtitle">
+              Secure your travel bookings with verifiable credentials
+            </p>
+          </div>
+          <div className="wallet-connect-action">
+            <button
+              className="btn btn-primary wallet-connect-btn"
+              onClick={connectWallet}
+              disabled={isConnecting || !walletInstalled}
+            >
+              {isConnecting ? (
+                <>
+                  <span className="spinner"></span>
+                  {getStepText()}
+                </>
+              ) : (
+                <>
+                  <span className="btn-icon">🔗</span>
+                  Connect Wallet
+                </>
+              )}
+            </button>
+          </div>
+        </>
       ) : (
-        <div className="wallet-connected-section">
-          <div className="wallet-header">
-            <h3 className="wallet-title">Wallet Connected</h3>
+        // Wallet connected - show wallet info and balance
+        <div className="wallet-connect-container">
+          <div className="wallet-connect-header">
+            <div className="wallet-icon-container">
+              <span className="wallet-large-icon">💼</span>
+            </div>
+            <h2 className="card-title">Wallet Connected</h2>
             <p className="wallet-subtitle">
               Your wallet is ready for secure travel bookings
             </p>
@@ -293,4 +319,4 @@ const WalletConnect = ({ onConnect }) => {
   );
 };
 
-export default WalletConnect;
+export default FixedWalletConnect;
