@@ -134,3 +134,5 @@ setupTrustRegistry()
     console.error('Trust Registry setup failed:', error);
     process.exit(1);
   });
+
+  

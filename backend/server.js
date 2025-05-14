@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.BACKEND_URL || 'http://localhost:5173',
+  origin: process.env.BACKEND_URL || 'http://localhost:5180',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -104,6 +104,12 @@ async function selectProviderWithAI(type, destination, budget) {
   const normalizedDestination = normalizeDestination(destination);
   console.log(`Selecting provider for type: ${type}, destination: ${normalizedDestination}, budget: ${budget}`);
 
+  // Check if the type is valid
+  if (!travelOptions[type]) {
+    console.log(`Invalid booking type: ${type}. Supported types are: ${Object.keys(travelOptions).join(', ')}`);
+    return null;
+  }
+
   try {
     const prompt = `
       You are a travel booking AI for a trustworthy booking agent. The user wants a ${type} to ${normalizedDestination} with a budget of $${budget}.
@@ -154,6 +160,8 @@ function createBookingDetails(option, bookingData) {
     price: option.price,
     dates: `${bookingData.departureDate} to ${bookingData.returnDate}`,
     bookingId: `BK-${uuidv4().substring(0, 8).toUpperCase()}`,
+    travelers: bookingData.travelers,
+    bookingType: bookingData.bookingType, // Added bookingType to details
   };
 }
 
@@ -193,6 +201,15 @@ app.post('/api/book', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid date format (use YYYY-MM-DD)',
+      });
+    }
+    // Validate bookingType
+    const validBookingTypes = Object.keys(travelOptions);
+    if (!validBookingTypes.includes(bookingType)) {
+      console.log(`Validation failed: Invalid booking type ${bookingType}. Supported types are: ${validBookingTypes.join(', ')}`);
+      return res.status(400).json({
+        success: false,
+        message: `Invalid booking type: ${bookingType}. Supported types are: ${validBookingTypes.join(', ')}`,
       });
     }
 

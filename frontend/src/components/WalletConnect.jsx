@@ -4,13 +4,13 @@ const WalletConnect = ({ onConnect }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletInstalled, setWalletInstalled] = useState(false);
   const [error, setError] = useState(null);
+  const [connectionStep, setConnectionStep] = useState(1);
 
   useEffect(() => {
     if (window.leap) {
       setWalletInstalled(true);
     } else {
       setWalletInstalled(false);
-      console.log('Leap Wallet not installed');
     }
   }, []);
 
@@ -63,10 +63,10 @@ const WalletConnect = ({ onConnect }) => {
 
   const suggestCheqdTestnet = async () => {
     try {
+      setConnectionStep(2);
       await window.leap.experimentalSuggestChain(testnetConfig);
-      console.log('cheqd testnet suggested successfully');
+      setConnectionStep(3);
     } catch (error) {
-      console.error('Failed to suggest cheqd testnet:', error);
       throw error;
     }
   };
@@ -74,16 +74,15 @@ const WalletConnect = ({ onConnect }) => {
   const connectWallet = async () => {
     setIsConnecting(true);
     setError(null);
+    setConnectionStep(1);
 
     try {
       if (!window.leap) {
         throw new Error('Leap Wallet not detected. Please install it.');
       }
 
-      console.log('Attempting to enable cheqd-testnet-6');
       await window.leap.enable('cheqd-testnet-6').catch(async (error) => {
         if (error.message.includes('chain')) {
-          console.log('Chain not found, suggesting cheqd testnet');
           await suggestCheqdTestnet();
           await window.leap.enable('cheqd-testnet-6');
         } else {
@@ -91,70 +90,139 @@ const WalletConnect = ({ onConnect }) => {
         }
       });
 
-      console.log('Fetching wallet key');
+      setConnectionStep(4);
       const key = await window.leap.getKey('cheqd-testnet-6');
       const address = key.bech32Address;
 
-      console.log('Wallet connected:', address);
+      setConnectionStep(5);
       onConnect(address);
     } catch (error) {
-      console.error('Error connecting wallet:', error);
       setError(`Failed to connect wallet: ${error.message}`);
+      setConnectionStep(0);
     } finally {
       setIsConnecting(false);
     }
   };
 
+  const getStepText = () => {
+    switch (connectionStep) {
+      case 0:
+        return 'Connection failed';
+      case 1:
+        return 'Initializing connection...';
+      case 2:
+        return 'Configuring cheqd network...';
+      case 3:
+        return 'Requesting wallet access...';
+      case 4:
+        return 'Retrieving credentials...';
+      case 5:
+        return 'Connection successful!';
+      default:
+        return 'Connecting...';
+    }
+  };
+
   return (
     <div className="card wallet-connect">
-      <h2 className="card-title">Connect Your Wallet</h2>
-      <p>To use the Trustworthy AI Travel Agent, please connect your Leap Wallet with cheqd testnet.</p>
-
-      {!walletInstalled && (
-        <div className="wallet-warning">
-          <p>⚠️ Leap Wallet not detected. Please install the Leap Wallet extension first.</p>
-          <a
-            href="https://www.leapwallet.io/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary"
-            style={{ marginTop: '1rem' }}
-          >
-            Get Leap Wallet
-          </a>
+      <div className="wallet-connect-header">
+        <div className="wallet-icon-container">
+          <span className="wallet-large-icon">🔐</span>
         </div>
-      )}
-
-      {error && (
-        <div className="wallet-error" style={{ color: 'red', margin: '1rem 0' }}>
-          <p>⚠️ {error}</p>
-        </div>
-      )}
-
-      <div style={{ margin: '2rem 0' }}>
+        <h2 className="card-title">Connect Your Wallet</h2>
+        <p className="wallet-subtitle">
+          Secure your travel bookings with verifiable credentials
+        </p>
+      </div>
+      <div className="wallet-connect-action">
         <button
-          className="btn btn-primary btn-block"
+          className="btn btn-primary wallet-connect-btn"
           onClick={connectWallet}
           disabled={isConnecting || !walletInstalled}
         >
           {isConnecting ? (
             <>
               <span className="spinner"></span>
-              Connecting...
+              {getStepText()}
             </>
           ) : (
-            'Connect Leap Wallet'
+            <>
+              <span className="btn-icon">🔗</span>
+              Connect Wallet
+            </>
           )}
         </button>
       </div>
-
-      <div style={{ fontSize: '0.875rem', color: '#666' }}>
-        <p>This app uses cheqd technology for:</p>
-        <ul style={{ marginLeft: '2rem', marginTop: '0.5rem' }}>
-          <li>Secure identity verification</li>
-          <li>Trusted provider verification</li>
-          <li>Secure storage of your travel preferences</li>
-        </ul>
+      {!walletInstalled && (
+        <div className="wallet-warning">
+          <div className="warning-icon">⚠️</div>
+          <div className="warning-content">
+            <h4 className="warning-title">Wallet Not Detected</h4>
+            <p className="warning-message">
+              Please install the Leap Wallet extension to continue.
+            </p>
+            <a
+              href="https://www.leapwallet.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary wallet-install-btn"
+            >
+              <span className="btn-icon">📲</span>
+              Get Leap Wallet
+            </a>
+          </div>
+        </div>
+      )}
+      {error && (
+        <div className="wallet-error">
+          <div className="error-icon">⛔</div>
+          <div className="error-content">
+            <h4 className="error-title">Connection Error</h4>
+            <p className="error-message">{error}</p>
+          </div>
+        </div>
+      )}
+      <div className="connection-steps">
+        {isConnecting && (
+          <div className="steps-container">
+            <div
+              className={`step-item ${connectionStep >= 1 ? 'active' : ''} ${
+                connectionStep > 1 ? 'completed' : ''
+              }`}
+            >
+              <div className="step-number">1</div>
+              <div className="step-label">Initialize</div>
+            </div>
+            <div
+              className={`step-item ${connectionStep >= 2 ? 'active' : ''} ${
+                connectionStep > 2 ? 'completed' : ''
+              }`}
+            >
+              <div className="step-number">2</div>
+              <div className="step-label">Configure</div>
+            </div>
+            <div
+              className={`step-item ${connectionStep >= 3 ? 'active' : ''} ${
+                connectionStep > 3 ? 'completed' : ''
+              }`}
+            >
+              <div className="step-number">3</div>
+              <div className="step-label">Authorize</div>
+            </div>
+            <div
+              className={`step-item ${connectionStep >= 4 ? 'active' : ''} ${
+                connectionStep > 4 ? 'completed' : ''
+              }`}
+            >
+              <div className="step-number">4</div>
+              <div className="step-label">Verify</div>
+            </div>
+            <div className={`step-item ${connectionStep >= 5 ? 'active' : ''}`}>
+              <div className="step-number">5</div>
+              <div className="step-label">Connect</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
