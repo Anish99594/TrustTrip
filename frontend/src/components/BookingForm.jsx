@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import FlightDeals from './FlightDeals';
-import WalletTransaction from './WalletTransaction';
 import './styles/HotelStyles.css';
 import { FaPlane, FaHotel, FaSuitcase, FaCalendarAlt, FaExchangeAlt, FaSearch, FaUsers, FaMoneyBillWave, FaMapMarkerAlt } from 'react-icons/fa';
 
-const BookingForm = ({ onSubmit, isLoading, walletAddress }) => {
+const BookingForm = ({ onSubmit, isLoading }) => {
   const [activeTab, setActiveTab] = useState('flights');
   const [tripType, setTripType] = useState('return');
-  const [showTransaction, setShowTransaction] = useState(false);
-  const [transactionDetails, setTransactionDetails] = useState(null);
   const [formData, setFormData] = useState({
     origin: 'India (IN)',
     destination: '',
@@ -32,75 +29,14 @@ const BookingForm = ({ onSubmit, isLoading, walletAddress }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const normalizedBookingType = activeTab === 'flights' ? 'flight' : activeTab === 'hotels' ? 'hotel' : activeTab;
-    
-    if (!walletAddress) {
-      alert('Please connect your wallet first to book a trip.');
-      return;
-    }
-    
-    console.log('Submitting booking form with data:', {
-      ...formData,
-      bookingType: normalizedBookingType,
-      tripType,
-      walletAddress
-    });
-    
-    // First, get a price estimate without creating the booking
-    fetch('http://localhost:3001/api/estimate-price', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        ...formData, 
-        bookingType: normalizedBookingType, 
-        tripType,
-        walletAddress
-      }),
-    })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Show transaction modal with estimated price
-          setTransactionDetails({
-            amount: data.price,
-            recipient: data.providerAddress || 'cheqd1r9acsgl9u0qk09knc3afc7aexlzuy2ewdksvp5',
-            walletAddress: walletAddress,
-          });
-          setShowTransaction(true);
-        } else {
-          // Handle error
-          console.error('Failed to get price estimate:', data.message);
-          alert(`Error: ${data.message}`);
-        }
-      })
-      .catch(error => {
-        console.error('Error estimating price:', error);
-        alert('Failed to estimate price. Please try again.');
-      });
-  };
-  
-  const handleTransactionSuccess = (txHash) => {
-    // Once transaction is successful, complete the booking
-    onSubmit({ 
-      ...formData, 
-      bookingType: activeTab === 'flights' ? 'flight' : activeTab === 'hotels' ? 'hotel' : activeTab, 
-      tripType,
-      walletAddress: walletAddress,
-      transactionHash: txHash 
-    });
-    setShowTransaction(false);
-  };
-  
-  const handleTransactionCancel = () => {
-    setShowTransaction(false);
+    onSubmit({ ...formData, bookingType: normalizedBookingType, tripType });
   };
 
   return (
     <div className="booking-form-container">
       {/* Hero section with background image - full width */}
       <div className="hero-section">
-        <div className="hero-overlay"></div>
+        <div className="hero-overlay">
         <div className="hero-content">
           <h1 className="hero-title">
             {activeTab === 'flights' ? 'Discover the world, one flight at a time' : 
@@ -320,6 +256,7 @@ const BookingForm = ({ onSubmit, isLoading, walletAddress }) => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -608,17 +545,6 @@ const BookingForm = ({ onSubmit, isLoading, walletAddress }) => {
           </form>
         </div>
       </div>
-      
-      {/* Wallet Transaction Modal */}
-      {showTransaction && transactionDetails && (
-        <WalletTransaction
-          walletAddress={transactionDetails.walletAddress}
-          amount={transactionDetails.amount}
-          recipient={transactionDetails.recipient}
-          onSuccess={handleTransactionSuccess}
-          onCancel={handleTransactionCancel}
-        />
-      )}
     </div>
   );
 };
