@@ -164,14 +164,78 @@ function createBookingDetails(option, bookingData) {
     currency: option.currency || 'CHEQ',
     travelers: parseInt(bookingData.travelers),
     bookingType: bookingData.bookingType,
+    transactionHash: bookingData.transactionHash,
+    simulatedPayment: bookingData.simulatedPayment || false,
   };
 }
+
+// API endpoint for price estimation only (no booking creation)
+app.post('/api/estimate-price', async (req, res) => {
+  try {
+    const bookingData = req.body;
+    const { destination, budget, bookingType, walletAddress } = bookingData;
+    console.log('Received price estimation request:', bookingData);
+
+    // Validate inputs
+    if (!destination || !bookingType || !walletAddress) {
+      console.log('Validation failed: Missing required fields');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: destination, bookingType, or walletAddress',
+      });
+    }
+
+    // Normalize destination
+    const normalizedDestination = normalizeDestination(destination);
+
+    // Find matching options
+    const options = travelOptions[bookingType]?.filter(opt => opt.destination === normalizedDestination);
+    
+    if (!options || options.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `No ${bookingType} options found for ${normalizedDestination}`,
+      });
+    }
+
+    // Select the first matching option for simplicity
+    const selectedOption = options[0];
+    
+    // Get provider DID from trust registry
+    const providerInfo = trustRegistry.providers.find(
+      (p) => p.type === bookingType && p.name === selectedOption.provider
+    );
+    const providerDID = providerInfo ? providerInfo.did : 'did:cheqd:testnet:unknown-provider';
+
+    return res.json({
+      success: true,
+      price: selectedOption.price,
+      currency: selectedOption.currency || 'CHEQ',
+      provider: selectedOption.provider,
+      providerDID,
+      providerAddress: 'cheqd1r9acsgl9u0qk09knc3afc7aexlzuy2ewdksvp5', // Default recipient address
+    });
+  } catch (error) {
+    console.error('Price estimation error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: `Price estimation failed: ${error.message}`,
+    });
+  }
+});
 
 // API endpoint for booking travel
 app.post('/api/book', async (req, res) => {
   try {
     const bookingData = req.body;
-    const { destination, budget, bookingType, walletAddress, travelers, departureDate, returnDate } = bookingData;
+    const { destination, budget, bookingType, walletAddress, travelers, departureDate, returnDate, simulatedPayment, transactionHash } = bookingData;
+    
+    // Log if this is a simulated payment
+    if (simulatedPayment) {
+      console.log('⚠️ Processing simulated payment transaction:', transactionHash);
+    } else {
+      console.log('✅ Processing real blockchain transaction:', transactionHash);
+    }
     console.log('Received booking request:', bookingData);
 
     // Validate inputs
@@ -304,6 +368,7 @@ app.post('/api/book', async (req, res) => {
           dates: `${departureDate} to ${returnDate}`,
           travelers,
           transactionHash: bookingData.transactionHash,
+          simulatedPayment: simulatedPayment || false,
         },
         issuanceDate: new Date().toISOString(),
       };

@@ -235,6 +235,22 @@
   color: #10b981;
 }
 
+.transaction-message.success {
+  color: #10b981;
+}
+
+.transaction-message.simulation {
+  color: #4f46e5;
+  background-color: rgba(79, 70, 229, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.transaction-message.error {
+  color: #ef4444;
+}
+
 .wallet-error {
   background-color: #fee2e2;
   border-left: 4px solid #ef4444;
@@ -377,13 +393,34 @@
 }
 
 .transaction-icon.success {
-  background-color: #d1fae5;
+  background-color: rgba(16, 185, 129, 0.1);
   color: #10b981;
 }
 
+.transaction-icon.simulated {
+  background-color: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+}
+
 .transaction-icon.failed {
-  background-color: #fee2e2;
+  background-color: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+}
+
+.simulation-icon {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .transaction-title {

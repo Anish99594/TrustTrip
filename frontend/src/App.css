@@ -964,6 +964,54 @@ body {
   color: var(--danger);
 }
 
+/* Simulation Notice Styles */
+.simulation-notice {
+  background-color: rgba(79, 70, 229, 0.1);
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+  border-left: 4px solid #4f46e5;
+  position: relative;
+  overflow: hidden;
+}
+
+.simulation-notice::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.2) 0%, transparent 70%);
+  opacity: 0.5;
+}
+
+.simulation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.simulation-icon {
+  font-size: 1.5rem;
+  animation: pulse 2s infinite;
+}
+
+.simulation-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #4f46e5;
+  margin: 0;
+}
+
+.simulation-description {
+  color: var(--text-color);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
 /* Animation Classes */
 @keyframes fadeIn {
   from { opacity: 0; }

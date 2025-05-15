@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const BookingResult = ({ result, onClose }) => {
-  const { success, message, details, credential } = result || {};
+  const { success, message, details, credential, simulationNotice } = result || {};
   const [isVisible, setIsVisible] = useState(false);
   const navigate = useNavigate();
 
@@ -120,6 +120,18 @@ const BookingResult = ({ result, onClose }) => {
                   </span>
                 </div>
               </div>
+              
+              {simulationNotice && (
+                <div className="simulation-notice">
+                  <div className="simulation-header">
+                    <span className="simulation-icon">🤖</span>
+                    <h4 className="simulation-title">Simulation Mode</h4>
+                  </div>
+                  <p className="simulation-description">
+                    {simulationNotice}
+                  </p>
+                </div>
+              )}
               
               <div className="credential-info">
                 <div className="credential-header">

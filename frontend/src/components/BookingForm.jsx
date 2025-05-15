@@ -45,8 +45,8 @@ const BookingForm = ({ onSubmit, isLoading, walletAddress }) => {
       walletAddress
     });
     
-    // Use the direct backend URL
-    fetch('http://localhost:3001/api/book', {
+    // First, get a price estimate without creating the booking
+    fetch('http://localhost:3001/api/estimate-price', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
