@@ -561,7 +561,7 @@ const BookingForm = ({ onSubmit, isLoading }) => {
                     <div className="review-count">{hotel.reviews.toLocaleString()} reviews</div>
                   </div>
                   <div className="hotel-price">
-                    <span>₹{hotel.price.toLocaleString()}</span>
+                    <span>{hotel.price.toLocaleString()}</span>
                     <span className="per-night">Per night</span>
                   </div>
                   <button className="view-hotel-btn">View Deal</button>
@@ -601,7 +601,7 @@ const BookingForm = ({ onSubmit, isLoading }) => {
                   </div>
                   <div className="city-price">
                     <div className="price-label">From</div>
-                    <div className="price-value">₹{city.price}</div>
+                    <div className="price-value">{city.price}</div>
                     <div className="price-period">a night</div>
                   </div>
                 </div>
@@ -645,7 +645,7 @@ const BookingForm = ({ onSubmit, isLoading }) => {
                     <span className="package-feature">🚗 Transport</span>
                   </div>
                   <div className="package-price">
-                    <span>${pkg.price}</span>
+                    <span>{pkg.price}</span>
                     <span className="per-person">per person</span>
                   </div>
                   <button className="view-package-btn">View Details</button>
@@ -668,7 +668,7 @@ const BookingForm = ({ onSubmit, isLoading }) => {
 
         <div className="testimonials-grid">
           {[
-            { name: 'Priya Sharma', location: 'Delhi', image: '/api/placeholder/100/100', quote: 'Found the best deal to Europe and saved over ₹15,000. The booking process was smooth and hassle-free.', rating: 5 },
+            { name: 'Priya Sharma', location: 'Delhi', image: '/api/placeholder/100/100', quote: 'Found the best deal to Europe and saved over 15,000. The booking process was smooth and hassle-free.', rating: 5 },
             { name: 'Rahul Mehra', location: 'Mumbai', image: '/api/placeholder/100/100', quote: 'The hotel recommendations were spot-on! Exactly what I was looking for and at a great price.', rating: 5 },
             { name: 'Ananya Patel', location: 'Bengaluru', image: '/api/placeholder/100/100', quote: 'The package deal to Thailand was perfect. Everything was well-organized and we had a wonderful time.', rating: 4 },
           ].map((testimonial, index) => (
