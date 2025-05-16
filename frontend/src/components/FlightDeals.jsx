@@ -88,7 +88,7 @@ const FlightDeals = () => {
                 </div>
                 <div className="deal-price-info">
                   {deal.direct && <span className="direct-badge">Direct</span>}
-                  <span className="deal-price">${deal.price}</span>
+                  <span className="deal-price">{deal.price}</span>
                 </div>
               </div>
             </div>
