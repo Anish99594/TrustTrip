@@ -174,7 +174,7 @@ npm run test
 - Sign DID creation transactions (~500 ncheq each)  
 - Receive verifiable booking credential  
 
-### For Providers *(Future)*
+### For Providers
 
 - Register DID and become verified provider  
 - List services (flights, hotels, tours)  
