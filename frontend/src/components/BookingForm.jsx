@@ -50,29 +50,29 @@ const BookingForm = ({ onSubmit, isLoading }) => {
           
           {/* Booking tabs */}
           <div className="booking-tabs-container">
-          <div className="booking-tabs">
-  <button
-    className={`tab-btn ${activeTab === 'flights' ? 'active' : ''}`}
-    onClick={() => setActiveTab('flights')}
-    type="button"
-  >
-    <span className="tab-icon"><FaPlane /></span> Flights
-  </button>
-  <button
-    className={`tab-btn ${activeTab === 'hotels' ? 'active' : ''}`}
-    onClick={() => setActiveTab('hotels')}
-    type="button"
-  >
-    <span className="tab-icon"><FaHotel /></span> Hotels
-  </button>
-  <button
-    className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
-    onClick={() => setActiveTab('packages')}
-    type="button"
-  >
-    <span className="tab-icon"><FaSuitcase /></span> Packages
-  </button>
-</div>
+            <div className="booking-tabs">
+              <button
+                className={`tab-btn ${activeTab === 'flights' ? 'active' : ''}`}
+                onClick={() => setActiveTab('flights')}
+                type="button"
+              >
+                <span className="tab-icon"><FaPlane /></span> Flights
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'hotels' ? 'active' : ''}`}
+                onClick={() => setActiveTab('hotels')}
+                type="button"
+              >
+                <span className="tab-icon"><FaHotel /></span> Hotels
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
+                onClick={() => setActiveTab('packages')}
+                type="button"
+              >
+                <span className="tab-icon"><FaSuitcase /></span> Packages
+              </button>
+            </div>
             
             {/* Search form */}
             <div className="search-panel">
@@ -534,9 +534,9 @@ const BookingForm = ({ onSubmit, isLoading }) => {
 
           <div className="hotels-grid">
             {[
-              { name: 'The Taj Mahal Palace', location: 'Mumbai', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1170&q=80', rating: 4.7, price: 18900, distance: '14.39 km from city centre', reviews: 10895, tag: 'Luxury' },
-              { name: 'ITC Maratha', location: 'Mumbai', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1170&q=80', rating: 4.7, price: 8750, distance: '6.39 km from city centre', reviews: 6138, tag: 'Business' },
-              { name: 'Hotel Guestinn Residency', location: 'New Delhi', image: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1170&q=80', rating: 4.6, price: 970, distance: '0.89 km from city centre', reviews: 14, tag: 'Budget' },
+              { name: 'The Taj Mahal Palace', location: 'Mumbai', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1170&q=80', rating: 4.7, price: `1890CHEQ`, distance: '14.39 km from city centre', reviews: 10895, tag: 'Luxury' },
+              { name: 'ITC Maratha', location: 'Mumbai', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1170&q=80', rating: 4.7, price: `8750CHEQ`, distance: '6.39 km from city centre', reviews: 6138, tag: 'Business' },
+              { name: 'Hotel Guestinn Residency', location: 'New Delhi', image: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1170&q=80', rating: 4.6, price: `970CHEQ`, distance: '0.89 km from city centre', reviews: 14, tag: 'Budget' },
             ].map((hotel, index) => (
               <div key={index} className="hotel-card">
                 <div className="hotel-tag">{hotel.tag}</div>
@@ -585,9 +585,9 @@ const BookingForm = ({ onSubmit, isLoading }) => {
 
           <div className="city-breaks-grid">
             {[
-              { city: 'Dubai', country: 'United Arab Emirates', image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1170&q=80', price: 560, properties: 2453 },
-              { city: 'Bangkok', country: 'Thailand', image: 'https://images.unsplash.com/photo-1563492065599-3520f775eeed?auto=format&fit=crop&w=1074&q=80', price: 560, properties: 3145 },
-              { city: 'London', country: 'United Kingdom', image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1170&q=80', price: 1009, properties: 4587 },
+              { city: 'Dubai', country: 'United Arab Emirates', image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1170&q=80', price: `560CHEQ`, properties: 2453 },
+              { city: 'Bangkok', country: 'Thailand', image: 'https://images.unsplash.com/photo-1563492065599-3520f775eeed?auto=format&fit=crop&w=1074&q=80', price: `560CHEQ`, properties: 3145 },
+              { city: 'London', country: 'United Kingdom', image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1170&q=80', price: `1009CHEQ`, properties: 4587 },
             ].map((city, index) => (
               <div key={index} className="city-card">
                 <div className="city-image" style={{ backgroundImage: `url(${city.image})` }}>
@@ -622,10 +622,10 @@ const BookingForm = ({ onSubmit, isLoading }) => {
 
           <div className="packages-grid">
             {[
-              { name: 'Bali Adventure', duration: '7 days', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1738&q=80', price: 1200, rating: 4.8, featured: true },
-              { name: 'European Tour', duration: '10 days', image: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1742&q=80', price: 2500, rating: 4.7 },
-              { name: 'Thailand Beaches', duration: '5 days', image: 'https://images.unsplash.com/photo-1504214208698-ea1916a2195a?auto=format&fit=crop&w=1740&q=80', price: 950, rating: 4.6 },
-              { name: 'Japan Cultural Tour', duration: '8 days', image: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=1740&q=80', price: 1800, rating: 4.9 },
+              { name: 'Bali Adventure', duration: '7 days', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1738&q=80', price: `2CHEQ`, rating: 4.8, featured: true },
+              { name: 'European Tour', duration: '10 days', image: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1742&q=80', price: `55CHEQ`, rating: 4.7 },
+              { name: 'Thailand Beaches', duration: '5 days', image: 'https://images.unsplash.com/photo-1504214208698-ea1916a2195a?auto=format&fit=crop&w=1740&q=80', price: `70CHEQ`, rating: 4.6 },
+              { name: 'Japan Cultural Tour', duration: '8 days', image: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=1740&q=80', price: '100CHEQ', rating: 4.9 },
             ].map((pkg, index) => (
               <div key={index} className={`package-card ${pkg.featured ? 'featured-package' : ''}`}>
                 {pkg.featured && <div className="featured-badge">Featured</div>}
