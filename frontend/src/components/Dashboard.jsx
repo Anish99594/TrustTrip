@@ -58,7 +58,7 @@ const Dashboard = () => {
         
         // Fetch global statistics
         try {
-          const statsResponse = await axios.get('http://localhost:3001/api/stats');
+          const statsResponse = await axios.get('https://trusttrip.onrender.com/api/stats');
           if (isMounted) setStats(statsResponse.data.data);
         } catch (statsError) {
           console.error('Error fetching stats:', statsError);
@@ -79,7 +79,7 @@ const Dashboard = () => {
         if (walletAddress) {
           try {
             // First get the bookings directly
-            const bookingsResponse = await axios.get(`http://localhost:3001/api/bookings/${walletAddress}`);
+            const bookingsResponse = await axios.get(`https://trusttrip.onrender.com/api/bookings/${walletAddress}`);
             const bookings = bookingsResponse.data.data || [];
             console.log('Fetched bookings:', bookings.length);
             

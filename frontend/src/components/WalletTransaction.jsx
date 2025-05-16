@@ -144,11 +144,11 @@ const WalletTransaction = ({ walletAddress, amount, recipient, onSuccess, onCanc
         console.log('Using fee:', fee);
         
         // Create a custom HTTP client that uses our proxy
-        const httpClient = new ProxyHttpClient('http://localhost:3001/api/proxy/cheqd-rpc');
+        const httpClient = new ProxyHttpClient('https://trusttrip.onrender.com/api/proxy/cheqd-rpc');
         
         // Get the signing client with our custom HTTP client
         const client = await SigningStargateClient.connectWithSigner(
-          'http://localhost:3001/api/proxy/cheqd-rpc', // This URL is still needed but will be overridden by our custom client
+          'https://trusttrip.onrender.com/api/proxy/cheqd-rpc', // This URL is still needed but will be overridden by our custom client
           offlineSigner,
           { 
             gasPrice: GasPrice.fromString('5.0ncheq'), // Use GasPrice helper for consistent formatting

@@ -101,19 +101,8 @@ const connectToMongoDB = async () => {
 
 connectToMongoDB();
 
-// CORS configuration
-const corsOptions = {
-  origin: '*', // Allow requests from any origin for development
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-};
 
-// Log CORS configuration
-console.log('CORS origin:', corsOptions.origin);
-
-// Middleware
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 
 // Proxy endpoint for CHEQD RPC requests to avoid CORS issues

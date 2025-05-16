@@ -8,7 +8,7 @@ export const config = {
   
   // API Endpoints
   api: {
-    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
+    baseUrl: import.meta.env.VITE_API_BASE_URL || 'https://trusttrip.onrender.com/api',
   },
   
   // App Settings

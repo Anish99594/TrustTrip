@@ -37,11 +37,11 @@ const BookingHistory = () => {
 
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:3001/api/bookings/${walletAddress}`);
+        const response = await axios.get(`https://trusttrip.onrender.com/api/bookings/${walletAddress}`);
         setBookings(response.data.data);
         
         // Also fetch stats
-        const statsResponse = await axios.get('http://localhost:3001/api/stats');
+        const statsResponse = await axios.get('https://trusttrip.onrender.com/api/stats');
         setStats(statsResponse.data.data);
         
         setLoading(false);

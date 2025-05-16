@@ -70,7 +70,7 @@ function App() {
       setShowTransaction(false);
       
       // Now submit the booking with the transaction hash
-      const response = await fetch('http://localhost:3001/api/book', {
+      const response = await fetch('https://trusttrip.onrender.com/api/book', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
