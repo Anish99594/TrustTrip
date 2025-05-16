@@ -33,6 +33,17 @@ TrustTrip is a decentralized travel booking platform that integrates AI with che
 **OpenAI API**: Provides AI-driven travel recommendations  
 **Authentication**: API key-based security for backend services and cheqd Studio API  
 
+### 🗺️ Architecture Diagram
+
+![TrustTrip Architecture Diagram](frontend/public/ArchitectureDiagrameTrustTrip.png)  
+<sub>*Diagram: Visual flow of TrustTrip system architecture connecting travelers, Leap Wallet, backend services, AI recommendations, and cheqd blockchain for issuing verifiable credentials.*</sub>
+
+> ⚙️ **Flow Summary**:
+> - The user initiates a booking request via the frontend UI.
+> - The backend fetches personalized travel suggestions using OpenAI's GPT-4.
+> - It creates DIDs and interacts with the cheqd blockchain and Studio API to issue credentials.
+> - The booking credential is then returned and visible in the frontend after transaction signing via Leap Wallet.
+
 ### Backend
 
 - Node.js & Express  
