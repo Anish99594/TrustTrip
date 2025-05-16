@@ -1,15 +1,105 @@
 const express = require('express');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
-const { OpenAI } = require('openai');
+const dotenv = require('dotenv');
+// Load environment variables
+dotenv.config();
 const fs = require('fs').promises;
-require('dotenv').config();
+const axios = require('axios');
+const { OpenAI } = require('openai');
 
 const { createDID, issueVC, checkTrustRegistry } = require('./services/cheqdService');
 const { getWallet, createOrUpdateWallet, addFunds, makePayment, getTransactionHistory } = require('./services/walletService');
 
+// Import MongoDB models
+const Booking = require('./models/Booking');
+const User = require('./models/User');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// MongoDB Connection
+let useInMemoryStore = false; // Set to false to force MongoDB usage
+const inMemoryBookings = [];
+const inMemoryUsers = [];
+
+const connectToMongoDB = async () => {
+  try {
+    // Try connecting to MongoDB Atlas first
+    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://username:password@cluster.mongodb.net/trusttrip';
+    console.log('Attempting to connect to MongoDB Atlas with URI:', mongoUri);
+    
+    // Connect with minimal options to avoid deprecation warnings
+    await mongoose.connect(mongoUri);
+    
+    console.log('MongoDB Atlas connected');
+    useInMemoryStore = false;
+  } catch (atlasError) {
+    console.error('❌ MongoDB Atlas connection error:', atlasError.message);
+    console.error('Full error details:', atlasError);
+    console.log('Attempting to connect to local MongoDB instance...');
+    
+    try {
+      // Fallback to local MongoDB
+      const localUri = 'mongodb://localhost:27017/trusttrip';
+      console.log('Attempting to connect to local MongoDB with URI:', localUri);
+      await mongoose.connect(localUri);
+      console.log('Local MongoDB connected');
+      useInMemoryStore = false;
+    } catch (localError) {
+      console.error('❌ Local MongoDB connection error:', localError.message);
+      console.error('Full local error details:', localError);
+      console.log('Running in memory-only mode (no persistent storage)');
+      useInMemoryStore = true;
+      
+      // Add some sample data to the in-memory store
+      if (inMemoryBookings.length === 0) {
+        inMemoryBookings.push({
+          bookingId: 'flight-123',
+          walletAddress: 'cheqd1d0v2gzwgvzvmw4mgeypt03l2xln56yzfhhdu5p',
+          bookingType: 'flight',
+          provider: 'British Airways',
+          destination: 'London',
+          departureDate: '2025-06-01',
+          returnDate: '2025-06-07',
+          passengers: 1,
+          totalAmount: 0.00007,
+          transactionHash: 'B7904C90B63EFF0F95D0BB9F8BE40245D2FEF258BA98D433055AA094D4286ED2',
+          status: 'confirmed',
+          createdAt: new Date('2025-05-10'),
+          isSimulated: false
+        });
+        
+        inMemoryBookings.push({
+          bookingId: 'hotel-456',
+          walletAddress: 'cheqd1d0v2gzwgvzvmw4mgeypt03l2xln56yzfhhdu5p',
+          bookingType: 'hotel',
+          provider: 'Marriott Hotels',
+          destination: 'Paris',
+          checkInDate: '2025-07-15',
+          checkOutDate: '2025-07-20',
+          guests: 2,
+          totalAmount: 0.00012,
+          transactionHash: 'SIMULATED_TX_HASH_123',
+          status: 'confirmed',
+          createdAt: new Date('2025-05-12'),
+          isSimulated: true
+        });
+        
+        // Add a user to the in-memory store
+        inMemoryUsers.push({
+          walletAddress: 'cheqd1d0v2gzwgvzvmw4mgeypt03l2xln56yzfhhdu5p',
+          userDID: 'did:cheqd:testnet:user123',
+          bookings: ['flight-123', 'hotel-456'],
+          createdAt: new Date('2025-05-01')
+        });
+      }
+    }
+  }
+};
+
+connectToMongoDB();
 
 // CORS configuration
 const corsOptions = {
@@ -25,6 +115,42 @@ console.log('CORS origin:', corsOptions.origin);
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Proxy endpoint for CHEQD RPC requests to avoid CORS issues
+app.post('/api/proxy/cheqd-rpc', async (req, res) => {
+  try {
+    console.log('Proxying RPC request to CHEQD network:', req.body?.method || 'unknown method');
+    
+    // Handle different RPC methods appropriately
+    const rpcUrl = process.env.CHEQD_TESTNET_RPC_URL || 'https://testnet.cheqd.network/';
+    console.log(`Using RPC URL: ${rpcUrl}`);
+    const response = await axios.post(rpcUrl, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    // Log success for debugging
+    console.log(`RPC response received for ${req.body?.method || 'unknown method'}`);
+    
+    // Return the response exactly as received
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error proxying RPC request:', error.message);
+    if (error.response) {
+      // If we have a response from the RPC server, forward it
+      console.error('RPC server response:', error.response.data);
+      return res.status(error.response.status).json(error.response.data);
+    }
+    // Otherwise return a generic error
+    res.status(500).json({ 
+      error: error.message,
+      jsonrpc: '2.0',
+      id: req.body?.id || null,
+      result: null
+    });
+  }
+});
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -111,11 +237,27 @@ async function selectProviderWithAI(type, destination, budget) {
     return null;
   }
 
+  // First check if we have matching options before trying AI
+  const matchingOptions = travelOptions[type].filter(
+    (opt) => opt.destination === normalizedDestination && opt.price <= budget
+  );
+  
+  if (matchingOptions.length === 0) {
+    console.log(`No options found for ${type} to ${normalizedDestination} within budget ${budget} CHEQ`);
+    return null;
+  }
+
   try {
+    // Check if OpenAI API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('OpenAI API key not found, using fallback selection method');
+      throw new Error('OpenAI API key not configured');
+    }
+    
     const prompt = `
       You are a travel booking AI for a trustworthy booking agent. The user wants a ${type} to ${normalizedDestination} with a budget of ${budget} CHEQ.
       Available options:
-      ${JSON.stringify(travelOptions[type].filter(opt => opt.destination === normalizedDestination), null, 2)}
+      ${JSON.stringify(matchingOptions, null, 2)}
       Select the best provider that matches the destination and is within budget. Consider price (lower is better) and provider reputation.
       Respond with JSON: { "provider": "provider_name", "price": number, "destination": "destination" }
       If no options match, return null.
@@ -133,17 +275,10 @@ async function selectProviderWithAI(type, destination, budget) {
     return result && result.provider ? result : null;
   } catch (error) {
     console.error('AI selection error:', error.message);
+    console.log('Using fallback price-based selection method');
+    
     // Fallback to rule-based selection
-    const options = travelOptions[type].filter(
-      (opt) => opt.destination === normalizedDestination && opt.price <= budget
-    );
-    console.log('Fallback options:', options);
-
-    if (options.length === 0) {
-      console.log(`No options found for ${type} to ${normalizedDestination} within budget $${budget}`);
-      return null;
-    }
-    const scoredOptions = options.map((opt) => ({
+    const scoredOptions = matchingOptions.map((opt) => ({
       ...opt,
       score: 1 - opt.price / budget, // Higher score for lower price
     }));
@@ -223,12 +358,32 @@ app.post('/api/estimate-price', async (req, res) => {
     });
   }
 });
-
-// API endpoint for booking travel
 app.post('/api/book', async (req, res) => {
   try {
     const bookingData = req.body;
-    const { destination, budget, bookingType, walletAddress, travelers, departureDate, returnDate, simulatedPayment, transactionHash } = bookingData;
+    console.log('Received booking request:', bookingData);
+    
+    // Extract booking data
+    const {
+      bookingType,
+      destination,
+      departureDate,
+      returnDate,
+      travelers,
+      budget,
+      walletAddress,
+      transactionHash,
+      simulatedPayment
+    } = bookingData;
+    
+    // Validate essential booking data
+    if (!bookingType || !destination || !departureDate || !walletAddress) {
+      console.error('Missing required booking data');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required booking information',
+      });
+    }
     
     // Log if this is a simulated payment
     if (simulatedPayment) {
@@ -381,14 +536,159 @@ app.post('/api/book', async (req, res) => {
       };
     }
 
+    // Create a new booking
+    const bookingId = uuidv4();
+    let savedBooking;
+    
+    try {
+      if (useInMemoryStore) {
+        // Use in-memory store
+        const newBooking = {
+          bookingId,
+          bookingType,
+          provider: option.provider,
+          providerDID,
+          destination: option.destination,
+          departureDate: new Date(departureDate),
+          returnDate: returnDate ? new Date(returnDate) : null,
+          price: option.price,
+          currency: option.currency || 'CHEQ',
+          travelers: parseInt(travelers) || 1,
+          walletAddress,
+          transactionHash,
+          simulatedPayment: simulatedPayment || false,
+          userDID,
+          createdAt: new Date(),
+          status: 'confirmed'
+        };
+        
+        // Add to in-memory bookings
+        inMemoryBookings.push(newBooking);
+        savedBooking = newBooking;
+        console.log('Booking saved to in-memory store:', bookingId);
+        
+        // Find or create user in memory
+        let user = inMemoryUsers.find(u => u.walletAddress === walletAddress);
+        if (!user) {
+          user = {
+            walletAddress,
+            userDID,
+            bookings: [bookingId],
+            totalSpent: parseFloat(option.price) || 0,
+            createdAt: new Date()
+          };
+          inMemoryUsers.push(user);
+        } else {
+          user.bookings.push(bookingId);
+          user.totalSpent = (parseFloat(user.totalSpent) || 0) + (parseFloat(option.price) || 0);
+        }
+        console.log('User updated in in-memory store:', user.walletAddress);
+      } else {
+        // Use MongoDB
+        try {
+          const newBooking = new Booking({
+            bookingId,
+            bookingType,
+            provider: option.provider,
+            providerDID,
+            destination: option.destination,
+            departureDate: new Date(departureDate),
+            returnDate: returnDate ? new Date(returnDate) : null,
+            price: option.price,
+            currency: option.currency || 'CHEQ',
+            travelers: parseInt(travelers) || 1,
+            walletAddress,
+            transactionHash,
+            simulatedPayment: simulatedPayment || false,
+            userDID
+          });
+
+          // Save booking to database
+          savedBooking = await newBooking.save();
+          console.log('Booking saved to MongoDB:', savedBooking._id);
+
+          // Find or create user and update their bookings
+          let user = await User.findOne({ walletAddress });
+          if (!user) {
+            user = new User({
+              walletAddress,
+              userDID,
+              bookings: [savedBooking._id],
+              totalSpent: parseFloat(option.price) || 0
+            });
+          } else {
+            user.bookings.push(savedBooking._id);
+            user.totalSpent = (parseFloat(user.totalSpent) || 0) + (parseFloat(option.price) || 0);
+          }
+          await user.save();
+          console.log('User updated with new booking:', user._id);
+        } catch (dbError) {
+          console.error('Error saving to MongoDB, falling back to in-memory:', dbError.message);
+          
+          // Fall back to in-memory if MongoDB save fails
+          const newBooking = {
+            bookingId,
+            bookingType,
+            provider: option.provider,
+            providerDID,
+            destination: option.destination,
+            departureDate: new Date(departureDate),
+            returnDate: returnDate ? new Date(returnDate) : null,
+            price: option.price,
+            currency: option.currency || 'CHEQ',
+            travelers: parseInt(travelers) || 1,
+            walletAddress,
+            transactionHash,
+            simulatedPayment: simulatedPayment || false,
+            userDID,
+            createdAt: new Date(),
+            status: 'confirmed'
+          };
+          
+          inMemoryBookings.push(newBooking);
+          savedBooking = newBooking;
+          console.log('Booking saved to in-memory store as fallback:', bookingId);
+          
+          // Update in-memory user
+          let user = inMemoryUsers.find(u => u.walletAddress === walletAddress);
+          if (!user) {
+            user = {
+              walletAddress,
+              userDID,
+              bookings: [bookingId],
+              totalSpent: parseFloat(option.price) || 0,
+              createdAt: new Date()
+            };
+            inMemoryUsers.push(user);
+          } else {
+            user.bookings.push(bookingId);
+            user.totalSpent = (parseFloat(user.totalSpent) || 0) + (parseFloat(option.price) || 0);
+          }
+        }
+      }
+    } catch (storageError) {
+      console.error('Critical error saving booking:', storageError.message);
+      throw new Error(`Failed to save booking: ${storageError.message}`);
+    }
+
     // Return booking confirmation
     console.log('Booking successful:', bookingDetails);
-    return res.status(200).json({
+    
+    // Prepare response object
+    const responseObj = {
       success: true,
       message: `Your ${bookingType} has been booked successfully!`,
       details: bookingDetails,
       credential: bookingVC,
-    });
+      bookingId: bookingId
+    };
+    
+    // Add simulation notice if this was a simulated payment
+    if (simulatedPayment) {
+      responseObj.simulationNotice = 'This booking used a simulated blockchain transaction for demonstration purposes. In production, real CHEQ tokens would be transferred.';
+    }
+    
+    return res.status(200).json(responseObj);
   } catch (error) {
     console.error('Booking error:', error.message);
     return res.status(500).json({
@@ -398,59 +698,425 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// Wallet API endpoints
+// Booking API endpoints
 
-// Get wallet info
-app.get('/api/wallet/:address', async (req, res) => {
+// Get all bookings for a wallet address
+app.get('/api/bookings/:walletAddress', async (req, res) => {
   try {
-    const { address } = req.params;
-    const wallet = await getWallet(address);
+    const { walletAddress } = req.params;
     
-    if (!wallet) {
-      return res.status(404).json({
+    // Validate wallet address format
+    if (!/^(cheqd1[0-9a-z]{38})$/.test(walletAddress)) {
+      return res.status(400).json({
         success: false,
-        message: 'Wallet not found',
+        message: 'Invalid wallet address format'
       });
+    }
+    
+    let bookings;
+    if (useInMemoryStore) {
+      // Use in-memory store
+      bookings = inMemoryBookings.filter(booking => booking.walletAddress === walletAddress)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else {
+      // Use MongoDB
+      console.log('Fetching bookings for wallet address:', walletAddress);
+      bookings = await Booking.find({ walletAddress }).sort({ createdAt: -1 }).lean();
+      console.log(`Found ${bookings.length} bookings for wallet address ${walletAddress}`);
+      
+      // Map MongoDB fields to expected frontend fields if needed
+      bookings = bookings.map(booking => ({
+        ...booking,
+        // Ensure price is a number
+        price: typeof booking.price === 'string' ? parseFloat(booking.price) : booking.price
+      }));
     }
     
     return res.status(200).json({
       success: true,
-      wallet,
+      count: bookings.length,
+      data: bookings
     });
   } catch (error) {
-    console.error('Error getting wallet:', error.message);
+    console.error('Error retrieving bookings:', error.message);
     return res.status(500).json({
       success: false,
-      message: `Failed to get wallet: ${error.message}`,
+      message: `Failed to retrieve bookings: ${error.message}`
     });
   }
 });
 
-// Create or update wallet
-app.post('/api/wallet', async (req, res) => {
+// Get booking by ID
+app.get('/api/booking/:bookingId', async (req, res) => {
   try {
-    const { address, initialBalance } = req.body;
+    const { bookingId } = req.params;
     
-    if (!address) {
-      return res.status(400).json({
+    let booking;
+    if (useInMemoryStore) {
+      // Use in-memory store
+      booking = inMemoryBookings.find(b => b.bookingId === bookingId);
+    } else {
+      // Use MongoDB
+      booking = await Booking.findOne({ bookingId });
+    }
+    
+    if (!booking) {
+      return res.status(404).json({
         success: false,
-        message: 'Wallet address is required',
+        message: 'Booking not found'
       });
     }
     
-    const wallet = await createOrUpdateWallet(address, initialBalance);
+    return res.status(200).json({
+      success: true,
+      data: booking
+    });
+  } catch (error) {
+    console.error('Error retrieving booking:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to retrieve booking: ${error.message}`
+    });
+  }
+});
+
+// Get user profile with booking history
+app.get('/api/user/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    // Validate wallet address format
+    if (!/^(cheqd1[0-9a-z]{38})$/.test(walletAddress)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format'
+      });
+    }
+    
+    let user;
+    if (useInMemoryStore) {
+      // Use in-memory store
+      user = inMemoryUsers.find(u => u.walletAddress === walletAddress);
+    } else {
+      // Use MongoDB
+      user = await User.findOne({ walletAddress }).populate('bookings');
+    }
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
     
     return res.status(200).json({
       success: true,
-      message: 'Wallet created or updated successfully',
-      wallet,
+      data: user
     });
   } catch (error) {
-    console.error('Error creating wallet:', error.message);
+    console.error('Error retrieving user profile:', error.message);
     return res.status(500).json({
       success: false,
-      message: `Failed to create wallet: ${error.message}`,
+      message: `Failed to retrieve user profile: ${error.message}`
     });
+  }
+});
+
+// Get user profile by wallet address
+app.get('/api/user/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    // Validate wallet address format
+    if (!/^(cheqd1[0-9a-z]{38})$/.test(walletAddress)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format'
+      });
+    }
+    
+    console.log('Fetching user profile for wallet address:', walletAddress);
+    
+    // Fetch bookings first
+    const bookings = await Booking.find({ walletAddress }).sort({ createdAt: -1 }).lean();
+    console.log(`Found ${bookings.length} bookings for wallet address ${walletAddress}`);
+    
+    // Calculate total spent
+    const totalSpent = bookings.reduce((sum, booking) => {
+      const price = typeof booking.price === 'string' ? parseFloat(booking.price) : (booking.price || 0);
+      return sum + price;
+    }, 0);
+    console.log('Total spent calculated:', totalSpent);
+    
+    // Count bookings by type
+    const flightBookings = bookings.filter(booking => booking.bookingType === 'flight').length;
+    const hotelBookings = bookings.filter(booking => booking.bookingType === 'hotel').length;
+    const carBookings = bookings.filter(booking => booking.bookingType === 'car').length;
+    
+    // Get most recent booking
+    const mostRecentBooking = bookings.length > 0 ? bookings[0] : null;
+    
+    // Find or create user
+    let user = await User.findOne({ walletAddress });
+    if (!user) {
+      console.log('Creating new user for wallet address:', walletAddress);
+      user = new User({
+        walletAddress,
+        userDID: `did:cheqd:testnet:user${Math.floor(Math.random() * 1000)}`,
+        bookings: bookings.map(b => b.bookingId),
+        totalSpent: totalSpent,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      await user.save();
+    } else {
+      // Update user with latest booking info
+      console.log('Updating existing user with latest booking info');
+      user.bookings = bookings.map(b => b.bookingId);
+      user.totalSpent = totalSpent;
+      user.updatedAt = new Date();
+      await user.save();
+    }
+    
+    // Determine member since date (date of oldest booking or user creation date)
+    const oldestBooking = bookings.length > 0 ? 
+      [...bookings].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0] : null;
+    const memberSince = oldestBooking ? oldestBooking.createdAt : user.createdAt;
+    
+    // Create response object
+    const responseData = {
+      walletAddress,
+      bookings: bookings,
+      totalSpent,
+      bookingsByType: {
+        flight: flightBookings,
+        hotel: hotelBookings,
+        car: carBookings
+      },
+      mostRecentBooking,
+      memberSince
+    };
+    
+    console.log('User profile response data:', JSON.stringify({
+      walletAddress,
+      totalSpent,
+      bookingCount: bookings.length,
+      flightBookings,
+      hotelBookings,
+      carBookings
+    }));
+    
+    return res.status(200).json({
+      success: true,
+      data: responseData
+    });
+  } catch (error) {
+    console.error('Error retrieving user profile:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to retrieve user profile: ${error.message}`
+    });
+  }
+});
+
+// Get platform statistics
+app.get('/api/stats', async (req, res) => {
+  try {
+    let totalBookings, totalUsers, bookings, users;
+    
+    if (useInMemoryStore) {
+      // Use in-memory store
+      bookings = inMemoryBookings;
+      users = inMemoryUsers;
+      totalBookings = bookings.length;
+      totalUsers = users.length;
+    } else {
+      // Use MongoDB
+      totalBookings = await Booking.countDocuments();
+      totalUsers = await User.countDocuments();
+      bookings = await Booking.find().sort({ createdAt: -1 }).lean();
+      
+      console.log(`Found ${bookings.length} total bookings in the database`);
+    }
+    
+    // Calculate total amount spent on the platform
+    const totalSpent = bookings.reduce((sum, booking) => {
+      const price = typeof booking.price === 'string' ? parseFloat(booking.price) : (booking.price || 0);
+      return sum + price;
+    }, 0);
+    
+    // Count bookings by type
+    const flightBookings = bookings.filter(booking => booking.bookingType === 'flight').length;
+    const hotelBookings = bookings.filter(booking => booking.bookingType === 'hotel').length;
+    const carBookings = bookings.filter(booking => booking.bookingType === 'car').length;
+    
+    console.log('Booking counts by type:', { flightBookings, hotelBookings, carBookings });
+    
+    // Get popular destinations (top 5)
+    const destinationCounts = {};
+    bookings.forEach(booking => {
+      if (booking.destination) {
+        destinationCounts[booking.destination] = (destinationCounts[booking.destination] || 0) + 1;
+      }
+    });
+    
+    const popularDestinations = Object.entries(destinationCounts)
+      .map(([destination, count]) => ({ destination, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    
+    // Get popular providers (top 5)
+    const providerCounts = {};
+    bookings.forEach(booking => {
+      if (booking.provider) {
+        providerCounts[booking.provider] = (providerCounts[booking.provider] || 0) + 1;
+      }
+    });
+    
+    const popularProviders = Object.entries(providerCounts)
+      .map(([provider, count]) => ({ provider, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    
+    const responseData = {
+      totalBookings,
+      totalUsers,
+      totalSpent,
+      bookingsByType: {
+        flight: flightBookings,
+        hotel: hotelBookings,
+        car: carBookings
+      },
+      popularDestinations,
+      popularProviders
+    };
+    
+    console.log('Stats API response data:', JSON.stringify({
+      totalBookings,
+      totalUsers,
+      totalSpent,
+      flightBookings,
+      hotelBookings,
+      carBookings
+    }));
+    
+    return res.status(200).json({
+      success: true,
+      data: responseData
+    });
+  } catch (error) {
+    console.error('Error retrieving statistics:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to retrieve statistics: ${error.message}`
+    });
+  }
+});
+
+// Wallet API endpoints
+
+// Process booking and save to MongoDB
+app.post('/api/book', async (req, res) => {
+  try {
+    const { 
+      bookingId, walletAddress, bookingType, provider, destination,
+      departureDate, returnDate, checkInDate, checkOutDate,
+      passengers, guests, totalAmount, transactionHash, isSimulated
+    } = req.body;
+    
+    // Validate required fields
+    if (!bookingId || !walletAddress || !bookingType || !provider) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required booking information' 
+      });
+    }
+    
+    let newBooking;
+    
+    if (useInMemoryStore) {
+      // Use in-memory store
+      newBooking = {
+        bookingId,
+        walletAddress,
+        bookingType,
+        provider,
+        destination,
+        departureDate,
+        returnDate,
+        checkInDate,
+        checkOutDate,
+        passengers,
+        guests,
+        totalAmount,
+        transactionHash,
+        status: 'confirmed',
+        isSimulated: isSimulated || false,
+        createdAt: new Date()
+      };
+      
+      inMemoryBookings.push(newBooking);
+      
+      // Update user's booking history
+      let user = inMemoryUsers.find(u => u.walletAddress === walletAddress);
+      
+      if (!user) {
+        user = {
+          walletAddress,
+          userDID: `did:cheqd:testnet:${walletAddress.substring(0, 8)}`,
+          bookings: [bookingId],
+          createdAt: new Date()
+        };
+        inMemoryUsers.push(user);
+      } else {
+        user.bookings.push(bookingId);
+      }
+    } else {
+      // Use MongoDB
+      newBooking = new Booking({
+        bookingId,
+        walletAddress,
+        bookingType,
+        provider,
+        destination,
+        departureDate,
+        returnDate,
+        checkInDate,
+        checkOutDate,
+        passengers,
+        guests,
+        totalAmount,
+        transactionHash,
+        status: 'confirmed',
+        isSimulated: isSimulated || false
+      });
+      
+      await newBooking.save();
+      
+      // Update user's booking history
+      let user = await User.findOne({ walletAddress });
+      
+      if (!user) {
+        user = new User({
+          walletAddress,
+          userDID: `did:cheqd:testnet:${walletAddress.substring(0, 8)}`,
+          bookings: [bookingId]
+        });
+      } else {
+        user.bookings.push(bookingId);
+      }
+      
+      await user.save();
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: 'Booking saved successfully',
+      data: newBooking
+    });
+  } catch (error) {
+    console.error('Error saving booking:', error);
+    res.status(500).json({ success: false, message: 'Failed to save booking' });
   }
 });
 

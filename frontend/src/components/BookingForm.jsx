@@ -13,6 +13,7 @@ const BookingForm = ({ onSubmit, isLoading }) => {
     returnDate: '',
     travelers: 1,
     cabinClass: 'Economy',
+    roomType: 'Standard',
     provider: 'Emirates',
     bookingType: 'flight',
     budget: '',
@@ -49,29 +50,29 @@ const BookingForm = ({ onSubmit, isLoading }) => {
           
           {/* Booking tabs */}
           <div className="booking-tabs-container">
-            <div className="booking-tabs">
-              <button
-                className={`tab-btn ${activeTab === 'flights' ? 'active' : ''}`}
-                onClick={() => setActiveTab('flights')}
-                type="button"
-              >
-                <span className="tab-icon"><FaPlane /></span> Flights
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'hotels' ? 'active' : ''}`}
-                onClick={() => setActiveTab('hotels')}
-                type="button"
-              >
-                <span className="tab-icon"><FaHotel /></span> Hotels
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
-                onClick={() => setActiveTab('packages')}
-                type="button"
-              >
-                <span className="tab-icon"><FaSuitcase /></span> Packages
-              </button>
-            </div>
+          <div className="booking-tabs">
+  <button
+    className={`tab-btn ${activeTab === 'flights' ? 'active' : ''}`}
+    onClick={() => setActiveTab('flights')}
+    type="button"
+  >
+    <span className="tab-icon"><FaPlane /></span> Flights
+  </button>
+  <button
+    className={`tab-btn ${activeTab === 'hotels' ? 'active' : ''}`}
+    onClick={() => setActiveTab('hotels')}
+    type="button"
+  >
+    <span className="tab-icon"><FaHotel /></span> Hotels
+  </button>
+  <button
+    className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
+    onClick={() => setActiveTab('packages')}
+    type="button"
+  >
+    <span className="tab-icon"><FaSuitcase /></span> Packages
+  </button>
+</div>
             
             {/* Search form */}
             <div className="search-panel">
@@ -115,7 +116,8 @@ const BookingForm = ({ onSubmit, isLoading }) => {
                 </div>
               )}
               
-              <form className="search-form" onSubmit={handleSubmit}>
+              {activeTab === 'flights' ? (
+                <form className="search-form" onSubmit={handleSubmit}>
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="origin"><FaPlane /> From</label>
@@ -242,17 +244,190 @@ const BookingForm = ({ onSubmit, isLoading }) => {
                   </button>
                 </div>
               </form>
+              ) : activeTab === 'hotels' ? (
+                <form className="search-form" onSubmit={handleSubmit}>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="destination"><FaMapMarkerAlt /> Destination</label>
+                      <input
+                        type="text"
+                        id="destination"
+                        name="destination"
+                        value={formData.destination}
+                        onChange={handleChange}
+                        placeholder="City, region, or hotel name"
+                        required
+                        className="enhanced-input"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group date-group">
+                      <label htmlFor="departureDate"><FaCalendarAlt /> Check-in</label>
+                      <input
+                        type="date"
+                        id="departureDate"
+                        name="departureDate"
+                        value={formData.departureDate}
+                        onChange={handleChange}
+                        required
+                        className="enhanced-input"
+                      />
+                    </div>
+                    
+                    <div className="form-group date-group">
+                      <label htmlFor="returnDate"><FaCalendarAlt /> Check-out</label>
+                      <input
+                        type="date"
+                        id="returnDate"
+                        name="returnDate"
+                        value={formData.returnDate}
+                        onChange={handleChange}
+                        required={tripType === 'return'}
+                        disabled={tripType === 'one-way'}
+                        className="enhanced-input"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="travelers"><FaUsers /> Guests</label>
+                      <select
+                        id="travelers"
+                        name="travelers"
+                        value={formData.travelers}
+                        onChange={handleChange}
+                        className="enhanced-select"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                          <option key={num} value={num}>{num} {num === 1 ? 'guest' : 'guests'}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="roomType"><FaHotel /> Room Type</label>
+                      <select
+                        id="roomType"
+                        name="roomType"
+                        value={formData.roomType || 'Standard'}
+                        onChange={handleChange}
+                        className="enhanced-select"
+                      >
+                        <option value="Standard">Standard</option>
+                        <option value="Deluxe">Deluxe</option>
+                        <option value="Suite">Suite</option>
+                        <option value="Executive">Executive</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="budget"><FaMoneyBillWave /> Budget per night</label>
+                      <input
+                        type="text"
+                        id="budget"
+                        name="budget"
+                        value={formData.budget}
+                        onChange={handleChange}
+                        placeholder="Optional"
+                        className="enhanced-input"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="search-options">
+                    <div className="checkbox-container">
+                      <input type="checkbox" id="free-cancellation" className="custom-checkbox" />
+                      <label htmlFor="free-cancellation">Free cancellation</label>
+                    </div>
+                    
+                    <div className="checkbox-container">
+                      <input type="checkbox" id="breakfast-included" className="custom-checkbox" />
+                      <label htmlFor="breakfast-included">Breakfast included</label>
+                    </div>
+                  </div>
+                  
+                  <div className="search-button-container">
+                    <button type="submit" className="search-button" disabled={isLoading}>
+                      {isLoading ? <span className="spinner"></span> : <><FaSearch /> Search Hotels</>}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form className="search-form" onSubmit={handleSubmit}>
+                  {/* Package form content */}
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="origin"><FaPlane /> From</label>
+                      <input
+                        type="text"
+                        id="origin"
+                        name="origin"
+                        value={formData.origin}
+                        onChange={handleChange}
+                        placeholder="City or airport"
+                        required
+                        className="enhanced-input"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="destination"><FaMapMarkerAlt /> To</label>
+                      <input
+                        type="text"
+                        id="destination"
+                        name="destination"
+                        value={formData.destination}
+                        onChange={handleChange}
+                        placeholder="City or airport"
+                        required
+                        className="enhanced-input"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="search-button-container">
+                    <button type="submit" className="search-button" disabled={isLoading}>
+                      {isLoading ? <span className="spinner"></span> : <><FaSearch /> Search Packages</>}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* Fast search suggestions */}
             <div className="fast-search-suggestions">
               <div className="suggestions-label">Popular searches:</div>
               <div className="suggestion-tags">
-                <span className="suggestion-tag">New York</span>
-                <span className="suggestion-tag">Dubai</span>
-                <span className="suggestion-tag">London</span>
-                <span className="suggestion-tag">Singapore</span>
-                <span className="suggestion-tag">Bali</span>
+                {activeTab === 'flights' ? (
+                  <>
+                    <span className="suggestion-tag">New York</span>
+                    <span className="suggestion-tag">Dubai</span>
+                    <span className="suggestion-tag">London</span>
+                    <span className="suggestion-tag">Singapore</span>
+                    <span className="suggestion-tag">Bali</span>
+                  </>
+                ) : activeTab === 'hotels' ? (
+                  <>
+                    <span className="suggestion-tag">Luxury Hotels</span>
+                    <span className="suggestion-tag">Beach Resorts</span>
+                    <span className="suggestion-tag">Boutique Hotels</span>
+                    <span className="suggestion-tag">All-Inclusive</span>
+                    <span className="suggestion-tag">Family-Friendly</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="suggestion-tag">Europe Tour</span>
+                    <span className="suggestion-tag">Asian Adventure</span>
+                    <span className="suggestion-tag">Caribbean Cruise</span>
+                    <span className="suggestion-tag">Safari Experience</span>
+                    <span className="suggestion-tag">Mountain Retreat</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

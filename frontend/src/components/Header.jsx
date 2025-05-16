@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import WalletConnect from './WalletConnect';
 
-const Header = ({ walletConnected, walletAddress }) => {
+const Header = ({ walletConnected, walletAddress, onWalletConnect }) => {
   const navigate = useNavigate();
 
   return (
@@ -22,7 +23,7 @@ const Header = ({ walletConnected, walletAddress }) => {
             padding: 0,
             gap: '1.5rem'
           }}>
-            {['/', '/verify', '/trips', '/support'].map((path, index) => {
+            {['/', '/verify', '/trips', '/bookings', '/dashboard', '/support'].map((path, index) => {
               const isActive = window.location.pathname === path;
               return (
                 <li key={path} style={{
@@ -53,7 +54,7 @@ const Header = ({ walletConnected, walletAddress }) => {
                       } : {}
                     }}
                   >
-                    {['Book', 'Verify', 'Trips', 'Support'][index]}
+                    {['Book', 'Verify', 'Trips', 'Bookings', 'Dashboard', 'Support'][index]}
                   </Link>
                 </li>
               );
@@ -61,17 +62,29 @@ const Header = ({ walletConnected, walletAddress }) => {
           </ul>
         </nav>
         <div className="header-actions">
-          {walletConnected && (
-            <span className="wallet-badge">
-              <span className="wallet-dot"></span>
-              {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}
-            </span>
-          )}
-          <button className="btn btn-secondary">
-            <span>📱</span> Get the App
-          </button>
-          <button className="btn btn-secondary btn-back" onClick={() => navigate(-1)}>
-            <span>⬅️</span> Back
+          <WalletConnect onConnect={onWalletConnect} />
+          <button 
+            className="btn btn-primary" 
+            onClick={() => document.dispatchEvent(new CustomEvent('connectWallet'))}
+            style={{
+              backgroundColor: '#1e88e5',
+              color: '#fff',
+              padding: '0.5rem 1rem',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              marginRight: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <span>📁</span>
+            {walletConnected ? 
+              `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : 
+              'Connect Wallet'
+            }
           </button>
           <button className="btn btn-secondary btn-back" onClick={() => navigate('/ai')}>
             <span>🤖</span> AI-Bot
@@ -83,5 +96,3 @@ const Header = ({ walletConnected, walletAddress }) => {
 };
 
 export default Header;
-
-

@@ -1,0 +1,694 @@
+import React, { useState, useEffect } from 'react';
+import { useWallet } from '../contexts/WalletContext';
+import axios from 'axios';
+import { FaPlane, FaHotel, FaCalendarAlt, FaMoneyBillWave, FaChartPie, FaMapMarkerAlt, FaWallet, FaExchangeAlt, FaClipboardCheck } from 'react-icons/fa';
+import WalletBalance from './WalletBalance';
+import './styles/Dashboard.css';
+
+const Dashboard = () => {
+  const { walletAddress, walletConnected } = useWallet();
+  const [bookings, setBookings] = useState([]);
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    totalSpent: 0,
+    flightBookings: 0,
+    hotelBookings: 0,
+    pendingBookings: 0,
+    completedBookings: 0,
+    cancelledBookings: 0,
+    topDestinations: [],
+    recentBookingsCount: 0,
+    bookingTrends: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showWalletBalance, setShowWalletBalance] = useState(false);
+
+  useEffect(() => {
+    if (walletConnected && walletAddress) {
+      fetchBookings();
+      fetchStats();
+    }
+  }, [walletConnected, walletAddress]);
+
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/bookings/${walletAddress}`);
+      if (response.data.success) {
+        setBookings(response.data.bookings);
+      } else {
+        setError('Failed to fetch bookings');
+      }
+    } catch (err) {
+      console.error('Error fetching bookings:', err);
+      setError('An error occurred while fetching your bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get(`/api/bookings/stats/${walletAddress}`);
+      if (response.data.success) {
+        setStats(response.data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching booking stats:', err);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'confirmed':
+        return 'status-confirmed';
+      case 'pending':
+        return 'status-pending';
+      case 'cancelled':
+        return 'status-cancelled';
+      case 'completed':
+        return 'status-completed';
+      default:
+        return '';
+    }
+  };
+
+  const renderOverviewTab = () => (
+    <div className="dashboard-overview">
+      <div className="wallet-section">
+        <div className="wallet-header">
+          <h3><FaWallet /> Wallet Overview</h3>
+          <button 
+            className="wallet-toggle-btn"
+            onClick={() => setShowWalletBalance(!showWalletBalance)}
+          >
+            {showWalletBalance ? 'Hide Details' : 'Show Details'}
+          </button>
+        </div>
+        
+        {showWalletBalance && (
+          <div className="wallet-details">
+            <WalletBalance walletAddress={walletAddress} />
+          </div>
+        )}
+      </div>
+      
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaCalendarAlt />
+          </div>
+          <div className="stat-details">
+            <h3>Total Bookings</h3>
+            <p className="stat-value">{stats.totalBookings}</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaMoneyBillWave />
+          </div>
+          <div className="stat-details">
+            <h3>Total Spent</h3>
+            <p className="stat-value">{stats.totalSpent} CHEQ</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaPlane />
+          </div>
+          <div className="stat-details">
+            <h3>Flight Bookings</h3>
+            <p className="stat-value">{stats.flightBookings}</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaHotel />
+          </div>
+          <div className="stat-details">
+            <h3>Hotel Bookings</h3>
+            <p className="stat-value">{stats.hotelBookings}</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaExchangeAlt />
+          </div>
+          <div className="stat-details">
+            <h3>Pending Bookings</h3>
+            <p className="stat-value">{stats.pendingBookings}</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FaClipboardCheck />
+          </div>
+          <div className="stat-details">
+            <h3>Completed Bookings</h3>
+            <p className="stat-value">{stats.completedBookings}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="dashboard-sections">
+        <div className="recent-bookings">
+          <h3>Recent Bookings</h3>
+          {bookings.length > 0 ? (
+            <div className="bookings-list">
+              {bookings.slice(0, 3).map(booking => (
+                <div key={booking.bookingId} className="booking-card">
+                  <div className="booking-type-icon">
+                    {booking.bookingType === 'flight' ? <FaPlane /> : <FaHotel />}
+                  </div>
+                  <div className="booking-details">
+                    <h4>{booking.destination}</h4>
+                    <p>
+                      <FaCalendarAlt /> {formatDate(booking.dates.startDate)} - {formatDate(booking.dates.endDate)}
+                    </p>
+                    <p>
+                      <FaMoneyBillWave /> {booking.price} {booking.currency}
+                    </p>
+                  </div>
+                  <div className={`booking-status ${getStatusClass(booking.status)}`}>
+                    {booking.status}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-bookings">No recent bookings found.</p>
+          )}
+        </div>
+        
+        <div className="top-destinations">
+          <h3><FaMapMarkerAlt /> Top Destinations</h3>
+          {stats.topDestinations && stats.topDestinations.length > 0 ? (
+            <div className="destinations-list">
+              {stats.topDestinations.map((destination, index) => (
+                <div key={index} className="destination-item">
+                  <span className="destination-name">{destination.name}</span>
+                  <span className="destination-count">{destination.count} bookings</span>
+                  <div className="destination-bar">
+                    <div 
+                      className="destination-bar-fill" 
+                      style={{ width: `${(destination.count / stats.totalBookings) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-data">No destination data available.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderAnalyticsTab = () => (
+    <div className="dashboard-analytics">
+      <div className="destinations-chart">
+        <h3>Top Destinations</h3>
+        {stats.topDestinations && stats.topDestinations.length > 0 ? (
+          <div className="destinations-list">
+            {stats.topDestinations.map((destination, index) => (
+              <div key={index} className="destination-item">
+                <div className="destination-name">
+                  <FaMapMarkerAlt /> {destination.name}
+                </div>
+                <div className="destination-bar-container">
+                  <div 
+                    className="destination-bar" 
+                    style={{ width: `${(destination.count / stats.totalBookings) * 100}%` }}
+                  ></div>
+                  <span className="destination-count">{destination.count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="no-destinations">No destination data available.</p>
+        )}
+      </div>
+      
+      {stats.bookingTrends && stats.bookingTrends.length > 0 && (
+        <div className="booking-trends">
+          <h3>Booking Trends (Last 6 Months)</h3>
+          <div className="trends-chart">
+            {stats.bookingTrends.map((trend, index) => {
+              const monthName = new Date(trend.year, trend.month - 1).toLocaleString('default', { month: 'short' });
+              return (
+                <div key={index} className="trend-item">
+                  <div className="trend-bar-container">
+                    <div 
+                      className="trend-bar" 
+                      style={{ 
+                        height: `${Math.min(100, (trend.count / Math.max(...stats.bookingTrends.map(t => t.count))) * 100)}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="trend-label">{monthName}</div>
+                  <div className="trend-count">{trend.count}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      <div className="analytics-cards">
+        <div className="analytics-card">
+          <h3>Booking Status Distribution</h3>
+          <div className="status-distribution">
+            <div className="status-item">
+              <div className="status-label">Confirmed</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar confirmed" 
+                  style={{ width: `${(stats.confirmedBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.confirmedBookings || 0}</span>
+              </div>
+            </div>
+            <div className="status-item">
+              <div className="status-label">Pending</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar pending" 
+                  style={{ width: `${(stats.pendingBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.pendingBookings || 0}</span>
+              </div>
+            </div>
+            <div className="status-item">
+              <div className="status-label">Completed</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar completed" 
+                  style={{ width: `${(stats.completedBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.completedBookings || 0}</span>
+              </div>
+            </div>
+            <div className="status-item">
+              <div className="status-label">Cancelled</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar cancelled" 
+                  style={{ width: `${(stats.cancelledBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.cancelledBookings || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="analytics-card">
+          <h3>Booking Type Distribution</h3>
+          <div className="booking-type-chart">
+            <div className="chart-container">
+              <div 
+                className="chart-segment flights" 
+                style={{ 
+                  width: stats.totalBookings ? `${(stats.flightBookings / stats.totalBookings) * 100}%` : '0%' 
+                }}
+              >
+                <FaPlane /> Flights
+              </div>
+              <div 
+                className="chart-segment hotels" 
+                style={{ 
+                  width: stats.totalBookings ? `${(stats.hotelBookings / stats.totalBookings) * 100}%` : '0%' 
+                }}
+              >
+                <FaHotel /> Hotels
+              </div>
+            </div>
+            <div className="chart-legend">
+              <div className="legend-item">
+                <div className="legend-color flights"></div>
+                <div className="legend-label">Flights: {stats.flightBookings || 0}</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color hotels"></div>
+                <div className="legend-label">Hotels: {stats.hotelBookings || 0}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="spending-trends">
+        <h3>Spending Trends</h3>
+        <p className="coming-soon">Detailed spending analytics coming soon!</p>
+      </div>
+    </div>
+  );
+
+  const renderBookingsTab = () => (
+    <div className="dashboard-bookings">
+      <div className="bookings-filter">
+        <input 
+          type="text" 
+          placeholder="Search bookings..." 
+          className="search-input"
+        />
+        <select className="filter-select">
+          <option value="all">All Types</option>
+          <option value="flight">Flights</option>
+          <option value="hotel">Hotels</option>
+        </select>
+        <select className="filter-select">
+          <option value="all">All Status</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      
+      {bookings.length > 0 ? (
+        <div className="bookings-table-container">
+          <table className="bookings-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Destination</th>
+                <th>Dates</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map(booking => (
+                <tr key={booking.bookingId}>
+                  <td>
+                    <div className="booking-type">
+                      {booking.bookingType === 'flight' ? <FaPlane /> : <FaHotel />}
+                      <span>{booking.bookingType}</span>
+                    </div>
+                  </td>
+                  <td>{booking.destination}</td>
+                  <td>{formatDate(booking.dates.startDate)} - {formatDate(booking.dates.endDate)}</td>
+                  <td>{booking.price} {booking.currency}</td>
+                  <td>
+                    <span className={`status-badge ${getStatusClass(booking.status)}`}>
+                      {booking.status}
+                    </span>
+                  </td>
+                  <td>
+                    <button className="action-btn view-btn">View</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="no-bookings-container">
+          <p>No bookings found.</p>
+        </div>
+      )}
+    </div>
+  );
+
+
+
+  if (!walletConnected) {
+    return (
+      <div className="dashboard-container not-connected">
+        <h2>Dashboard</h2>
+        <div className="connect-prompt">
+          <p>Please connect your wallet to view your dashboard.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h2>Travel Dashboard</h2>
+        <p className="wallet-address">
+          Connected: {walletAddress.substring(0, 8)}...{walletAddress.substring(walletAddress.length - 6)}
+        </p>
+      </div>
+      
+      {loading ? (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your dashboard...</p>
+        </div>
+      ) : error ? (
+        <div className="error-container">
+          <p className="error-message">{error}</p>
+          <button className="retry-btn" onClick={fetchBookings}>Retry</button>
+        </div>
+      ) : (
+        <>
+          <div className="dashboard-tabs">
+            <button 
+              className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'bookings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('bookings')}
+            >
+              All Bookings
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              Analytics
+            </button>
+          </div>
+          
+          <div className="dashboard-content">
+            {activeTab === 'overview' && renderOverviewTab()}
+            {activeTab === 'bookings' && renderBookingsTab()}
+            {activeTab === 'analytics' && renderAnalyticsTab()}
+          </div>
+        </>
+      )}
+    </div>
+  );
+  
+  const renderAnalyticsTab = () => (
+    <div className="dashboard-analytics">
+      <div className="destinations-chart">
+        <h3>Top Destinations</h3>
+        {stats.topDestinations && stats.topDestinations.length > 0 ? (
+          <div className="destinations-list">
+            {stats.topDestinations.map((destination, index) => (
+              <div key={index} className="destination-item">
+                <div className="destination-name">
+                  <FaMapMarkerAlt /> {destination.name}
+                </div>
+                <div className="destination-bar-container">
+                  <div 
+                    className="destination-bar" 
+                    style={{ width: `${(destination.count / stats.totalBookings) * 100}%` }}
+                  ></div>
+                  <span className="destination-count">{destination.count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="no-destinations">No destination data available.</p>
+        )}
+      </div>
+      
+      {stats.bookingTrends && stats.bookingTrends.length > 0 && (
+        <div className="booking-trends">
+          <h3>Booking Trends (Last 6 Months)</h3>
+          <div className="trends-chart">
+            {stats.bookingTrends.map((trend, index) => {
+              const monthName = new Date(trend.year, trend.month - 1).toLocaleString('default', { month: 'short' });
+              return (
+                <div key={index} className="trend-item">
+                  <div className="trend-bar-container">
+                    <div 
+                      className="trend-bar" 
+                      style={{ 
+                        height: `${Math.min(100, (trend.count / Math.max(...stats.bookingTrends.map(t => t.count))) * 100)}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="trend-label">{monthName}</div>
+                  <div className="trend-count">{trend.count}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      <div className="analytics-cards">
+        <div className="analytics-card">
+          <h3>Booking Status Distribution</h3>
+          <div className="status-distribution">
+            <div className="status-item">
+              <div className="status-label">Confirmed</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar confirmed" 
+                  style={{ width: `${(stats.confirmedBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.confirmedBookings || 0}</span>
+              </div>
+            </div>
+            <div className="status-item">
+              <div className="status-label">Pending</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar pending" 
+                  style={{ width: `${(stats.pendingBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.pendingBookings || 0}</span>
+              </div>
+            </div>
+            <div className="status-item">
+              <div className="status-label">Completed</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar completed" 
+                  style={{ width: `${(stats.completedBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.completedBookings || 0}</span>
+              </div>
+            </div>
+            <div className="status-item">
+              <div className="status-label">Cancelled</div>
+              <div className="status-bar-container">
+                <div 
+                  className="status-bar cancelled" 
+                  style={{ width: `${(stats.cancelledBookings / stats.totalBookings) * 100}%` }}
+                ></div>
+                <span className="status-count">{stats.cancelledBookings || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="analytics-card">
+          <h3>Booking Type Distribution</h3>
+          <div className="booking-type-chart">
+            <div className="chart-container">
+              <div 
+                className="chart-segment flights" 
+                style={{ 
+                  width: stats.totalBookings ? `${(stats.flightBookings / stats.totalBookings) * 100}%` : '0%' 
+                }}
+              >
+                <FaPlane /> Flights
+              </div>
+              <div 
+                className="chart-segment hotels" 
+                style={{ 
+                  width: stats.totalBookings ? `${(stats.hotelBookings / stats.totalBookings) * 100}%` : '0%' 
+                }}
+              >
+                <FaHotel /> Hotels
+              </div>
+            </div>
+            <div className="chart-legend">
+              <div className="legend-item">
+                <div className="legend-color flights"></div>
+                <div className="legend-label">Flights: {stats.flightBookings || 0}</div>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color hotels"></div>
+                <div className="legend-label">Hotels: {stats.hotelBookings || 0}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="spending-trends">
+        <h3>Spending Trends</h3>
+        <p className="coming-soon">Detailed spending analytics coming soon!</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="dashboard-container">
+      {!walletConnected ? (
+        <div className="wallet-connect-prompt">
+          <h2>Connect your wallet to view your dashboard</h2>
+          <p>Please connect your wallet to see your booking statistics and history.</p>
+        </div>
+      ) : loading ? (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your dashboard...</p>
+        </div>
+      ) : error ? (
+        <div className="error-container">
+          <p className="error-message">{error}</p>
+          <button className="retry-button" onClick={() => {
+            fetchBookings();
+            fetchStats();
+          }}>Retry</button>
+        </div>
+      ) : (
+        <>
+          <div className="dashboard-header">
+            <h2>Your Travel Dashboard</h2>
+            <div className="dashboard-tabs">
+              <button 
+                className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
+                onClick={() => setActiveTab('overview')}
+              >
+                Overview
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'bookings' ? 'active' : ''}`}
+                onClick={() => setActiveTab('bookings')}
+              >
+                Bookings
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`}
+                onClick={() => setActiveTab('analytics')}
+              >
+                Analytics
+              </button>
+            </div>
+          </div>
+          
+          <div className="dashboard-content">
+            {activeTab === 'overview' && renderOverviewTab()}
+            {activeTab === 'bookings' && renderBookingsTab()}
+            {activeTab === 'analytics' && renderAnalyticsTab()}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;

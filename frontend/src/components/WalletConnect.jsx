@@ -11,31 +11,47 @@ const WalletConnect = ({ onConnect }) => {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
 
   useEffect(() => {
-    if (window.leap) {
-      setWalletInstalled(true);
-      checkWalletConnection();
-    } else {
-      setWalletInstalled(false);
-    }
-  }, []);
+    // Check if Leap wallet is installed
+    const checkWalletInstallation = () => {
+      const detected = !!window.leap;
+      
+      if (detected !== walletInstalled) {
+        console.log(detected ? 'Leap wallet detected' : 'Leap wallet not detected');
+        setWalletInstalled(detected);
+        
+        if (detected) {
+          checkWalletConnection();
+        }
+      }
+    };
+    
+    checkWalletInstallation();
+    
+    const intervalId = setInterval(checkWalletInstallation, 3000);
+    return () => clearInterval(intervalId);
+  }, [walletInstalled]);
 
   const checkWalletConnection = async () => {
     try {
-      // Check if Leap wallet is available
       if (window.leap) {
-        // Try to get the key for the CHEQ testnet
-        const key = await window.leap.getKey('cheqd-testnet-6').catch(() => null);
+        console.log('Checking wallet connection...');
+        const key = await window.leap.getKey('cheqd-testnet-6').catch((err) => {
+          console.log('Error getting key:', err.message);
+          return null;
+        });
         
         if (key && key.bech32Address) {
+          console.log('Found wallet address:', key.bech32Address);
           setConnectedAddress(key.bech32Address);
-          
-          // Notify parent component
           if (onConnect) {
             onConnect(key.bech32Address);
           }
-          
           console.log('Wallet connected successfully:', key.bech32Address);
+        } else {
+          console.log('No wallet address found');
         }
+      } else {
+        console.log('Leap wallet not available for connection check');
       }
     } catch (error) {
       console.error('Error checking wallet connection:', error);
@@ -106,191 +122,82 @@ const WalletConnect = ({ onConnect }) => {
     setConnectionStep(1);
 
     try {
-      if (!window.leap) {
-        throw new Error('Leap Wallet not detected. Please install it.');
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (!window.leap && attempts < maxAttempts) {
+        console.log(`Waiting for Leap wallet to be available (attempt ${attempts + 1}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
       }
+      
+      if (!window.leap) {
+        console.error('Leap Wallet not detected after waiting');
+        throw new Error('Leap Wallet not detected. Please install it and refresh the page.');
+      }
+      
+      console.log('Leap wallet is now available, proceeding with connection');
 
-      await window.leap.enable('cheqd-testnet-6').catch(async (error) => {
+      console.log('Attempting to enable Leap wallet...');
+      try {
+        await window.leap.enable('cheqd-testnet-6');
+        console.log('Wallet enabled successfully');
+      } catch (error) {
+        console.log('Enable error:', error.message);
         if (error.message.includes('chain')) {
+          console.log('Chain not found, suggesting testnet...');
           await suggestCheqdTestnet();
+          console.log('Testnet suggested, trying to enable again...');
           await window.leap.enable('cheqd-testnet-6');
+          console.log('Wallet enabled after suggesting chain');
         } else {
           throw error;
         }
-      });
+      }
 
       setConnectionStep(4);
+      console.log('Getting wallet key...');
       const key = await window.leap.getKey('cheqd-testnet-6');
+      
+      if (!key) {
+        throw new Error('Failed to get wallet key');
+      }
+      
       const address = key.bech32Address;
+      console.log('Got wallet address:', address);
 
       setConnectionStep(5);
       setConnectedAddress(address);
       
-      // We don't need to get the balance directly as the Leap wallet handles this
-      // Just log the successful connection
       console.log('Wallet connected successfully:', address);
       
-      onConnect(address);
+      if (onConnect) {
+        onConnect(address);
+      } else {
+        console.warn('onConnect callback not provided');
+      }
     } catch (error) {
+      console.error('Wallet connection error:', error);
       setError(`Failed to connect wallet: ${error.message}`);
       setConnectionStep(0);
     } finally {
-      setIsConnecting(false);
+      setIsLoading(false);
     }
   };
 
-  const getStepText = () => {
-    switch (connectionStep) {
-      case 0:
-        return 'Connection failed';
-      case 1:
-        return 'Initializing connection...';
-      case 2:
-        return 'Configuring cheqd network...';
-      case 3:
-        return 'Requesting wallet access...';
-      case 4:
-        return 'Retrieving credentials...';
-      case 5:
-        return 'Connection successful!';
-      default:
-        return 'Connecting...';
-    }
-  };
+  // Listen for connect wallet event from Header
+  useEffect(() => {
+    const handleConnect = () => {
+      connectWallet();
+    };
+    document.addEventListener('connectWallet', handleConnect);
+    return () => {
+      document.removeEventListener('connectWallet', handleConnect);
+    };
+  }, []);
 
-  const disconnectWallet = () => {
-    setConnectedAddress(null);
-    setShowWalletBalance(false);
-    if (onConnect) {
-      onConnect(null);
-    }
-  };
-
-  return (
-    <div className="wallet-container">
-      {!connectedAddress ? (
-        <div className="wallet-connect-section">
-          <button 
-            className="btn btn-primary wallet-connect-btn" 
-            onClick={connectWallet}
-            disabled={isConnecting}
-          >
-            <span className="btn-icon"><FaWallet /></span>
-            {isConnecting ? getStepText() : 'Connect Wallet'}
-          </button>
-        </div>
-      ) : (
-        <div className="wallet-connected-section">
-          <div className="wallet-header">
-            <h3 className="wallet-title">Wallet Connected</h3>
-            <p className="wallet-subtitle">
-              Your wallet is ready for secure travel bookings
-            </p>
-          </div>
-          
-          <div className="wallet-info-section">
-            <div className="wallet-info-icon">
-              <FaWallet />
-            </div>
-            <div className="wallet-info-details">
-              <div className="wallet-info-address">
-                {connectedAddress.substring(0, 8)}...{connectedAddress.substring(connectedAddress.length - 6)}
-              </div>
-              <div className="wallet-info-status">
-                <FaCheckCircle /> Connected
-              </div>
-            </div>
-            <button className="wallet-disconnect" onClick={disconnectWallet}>
-              Disconnect
-            </button>
-          </div>
-          
-          <button 
-            className="btn btn-secondary" 
-            onClick={() => setShowWalletBalance(!showWalletBalance)}
-            style={{ marginTop: '1rem' }}
-          >
-            {showWalletBalance ? 'Hide Wallet Details' : 'Show Wallet Details'}
-          </button>
-          
-          {showWalletBalance && (
-            <WalletBalance walletAddress={connectedAddress} />
-          )}
-        </div>
-      )}
-      {!walletInstalled && !connectedAddress && (
-        <div className="wallet-warning">
-          <div className="warning-icon">⚠️</div>
-          <div className="warning-content">
-            <h4 className="warning-title">Wallet Not Detected</h4>
-            <p className="warning-message">
-              Please install the Leap Wallet extension to continue.
-            </p>
-            <a
-              href="https://www.leapwallet.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary wallet-install-btn"
-            >
-              <span className="btn-icon">📲</span>
-              Get Leap Wallet
-            </a>
-          </div>
-        </div>
-      )}
-      {error && (
-        <div className="wallet-error">
-          <div className="error-icon">⛔</div>
-          <div className="error-content">
-            <h4 className="error-title">Connection Error</h4>
-            <p className="error-message">{error}</p>
-          </div>
-        </div>
-      )}
-      <div className="connection-steps">
-        {isConnecting && (
-          <div className="steps-container">
-            <div
-              className={`step-item ${connectionStep >= 1 ? 'active' : ''} ${
-                connectionStep > 1 ? 'completed' : ''
-              }`}
-            >
-              <div className="step-number">1</div>
-              <div className="step-label">Initialize</div>
-            </div>
-            <div
-              className={`step-item ${connectionStep >= 2 ? 'active' : ''} ${
-                connectionStep > 2 ? 'completed' : ''
-              }`}
-            >
-              <div className="step-number">2</div>
-              <div className="step-label">Configure</div>
-            </div>
-            <div
-              className={`step-item ${connectionStep >= 3 ? 'active' : ''} ${
-                connectionStep > 3 ? 'completed' : ''
-              }`}
-            >
-              <div className="step-number">3</div>
-              <div className="step-label">Authorize</div>
-            </div>
-            <div
-              className={`step-item ${connectionStep >= 4 ? 'active' : ''} ${
-                connectionStep > 4 ? 'completed' : ''
-              }`}
-            >
-              <div className="step-number">4</div>
-              <div className="step-label">Verify</div>
-            </div>
-            <div className={`step-item ${connectionStep >= 5 ? 'active' : ''}`}>
-              <div className="step-number">5</div>
-              <div className="step-label">Connect</div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Don't render anything since the button is in the header
+  return null;
 };
 
 export default WalletConnect;

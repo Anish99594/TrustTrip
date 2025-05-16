@@ -12,22 +12,47 @@ const FixedWalletConnect = ({ onConnect }) => {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
 
   useEffect(() => {
-    if (window.leap) {
-      setWalletInstalled(true);
-      checkWalletConnection();
-    } else {
-      setWalletInstalled(false);
-    }
-  }, []);
+    // One-time check for Leap wallet
+    const checkWalletInstallation = () => {
+      const detected = !!window.leap;
+      
+      if (detected !== walletInstalled) {
+        // Only log on state change to reduce console spam
+        if (detected) {
+          console.log('Leap wallet detected in FixedWalletConnect');
+        }
+        
+        setWalletInstalled(detected);
+        
+        if (detected) {
+          checkWalletConnection();
+        }
+      }
+    };
+    
+    // Initial check
+    checkWalletInstallation();
+    
+    // Check less frequently to avoid console spam
+    const intervalId = setInterval(checkWalletInstallation, 5000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
+  }, [walletInstalled]);
 
   const checkWalletConnection = async () => {
     try {
       // Check if Leap wallet is available
       if (window.leap) {
+        console.log('Checking wallet connection in FixedWalletConnect...');
         // Try to get the key for the CHEQ testnet
-        const key = await window.leap.getKey('cheqd-testnet-6').catch(() => null);
+        const key = await window.leap.getKey('cheqd-testnet-6').catch((err) => {
+          console.log('Error getting key in FixedWalletConnect:', err.message);
+          return null;
+        });
         
         if (key && key.bech32Address) {
+          console.log('Found wallet address in FixedWalletConnect:', key.bech32Address);
           setConnectedAddress(key.bech32Address);
           
           // Notify parent component
@@ -35,11 +60,15 @@ const FixedWalletConnect = ({ onConnect }) => {
             onConnect(key.bech32Address);
           }
           
-          console.log('Wallet connected successfully:', key.bech32Address);
+          console.log('Wallet connected successfully in FixedWalletConnect:', key.bech32Address);
+        } else {
+          console.log('No wallet address found in FixedWalletConnect');
         }
+      } else {
+        console.log('Leap wallet not available for connection check in FixedWalletConnect');
       }
     } catch (error) {
-      console.error('Error checking wallet connection:', error);
+      console.error('Error checking wallet connection in FixedWalletConnect:', error);
     }
   };
 
