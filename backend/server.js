@@ -108,35 +108,64 @@ app.use(express.json());
 // Proxy endpoint for CHEQD RPC requests to avoid CORS issues
 app.post('/api/proxy/cheqd-rpc', async (req, res) => {
   try {
-    console.log('Proxying RPC request to CHEQD network:', req.body?.method || 'unknown method');
+    const method = req.body?.method || 'unknown';
+    console.log(`Proxying RPC request to CHEQD network: ${method}`);
     
-    // Handle different RPC methods appropriately
-    const rpcUrl = process.env.CHEQD_TESTNET_RPC_URL || 'https://testnet.cheqd.network/';
-    console.log(`Using RPC URL: ${rpcUrl}`);
-    const response = await axios.post(rpcUrl, req.body, {
+    // Use the official testnet RPC endpoint
+    const rpcUrl = (process.env.CHEQD_TESTNET_RPC_URL || 'https://rpc.cheqd.network').replace(/\/+$/, '');
+    const endpoint = `${rpcUrl}`;
+    
+    console.log(`Sending request to: ${endpoint}`, { method, params: req.body?.params });
+    
+    const response = await axios({
+      method: 'post',
+      url: endpoint,
+      data: req.body,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
+      timeout: 30000, // 30 second timeout
     });
     
-    // Log success for debugging
-    console.log(`RPC response received for ${req.body?.method || 'unknown method'}`);
+    console.log(`RPC response for ${method}:`, response.status);
     
     // Return the response exactly as received
-    res.json(response.data);
+    return res.status(200).json(response.data);
+    
   } catch (error) {
     console.error('Error proxying RPC request:', error.message);
+    
     if (error.response) {
-      // If we have a response from the RPC server, forward it
-      console.error('RPC server response:', error.response.data);
+      // Forward the error response from the RPC server
+      console.error('RPC error response:', {
+        status: error.response.status,
+        data: error.response.data
+      });
       return res.status(error.response.status).json(error.response.data);
     }
-    // Otherwise return a generic error
-    res.status(500).json({ 
-      error: error.message,
+    
+    // Handle timeout specifically
+    if (error.code === 'ECONNABORTED') {
+      return res.status(504).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Request timed out',
+        },
+        id: req.body?.id || null
+      });
+    }
+    
+    // Return a generic error
+    return res.status(500).json({
       jsonrpc: '2.0',
-      id: req.body?.id || null,
-      result: null
+      error: {
+        code: -32603,
+        message: `Internal error: ${error.message}`,
+        data: error.stack
+      },
+      id: req.body?.id || null
     });
   }
 });

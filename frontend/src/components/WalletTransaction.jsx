@@ -62,7 +62,10 @@ const WalletTransaction = ({ walletAddress, amount, recipient, onSuccess, onCanc
       setStatus('processing');
       
       // Enable the Leap wallet for the CHEQ testnet chain
-      await window.leap.enable('cheqd-testnet-6');
+      const chainId = 'cheqd-testnet-6';
+      await window.leap.enable(chainId);
+      
+      console.log(`Connected to chain: ${chainId}`);
       
       // Get the current account
       const key = await window.leap.getKey('cheqd-testnet-6');
@@ -135,24 +138,31 @@ const WalletTransaction = ({ walletAddress, amount, recipient, onSuccess, onCanc
           amount: [
             {
               denom: 'ncheq',
-              amount: '5000000' // Explicitly set the required fee amount
+              amount: '1000000' // 0.001 CHEQ - reasonable fee for testnet
             }
           ],
-          gas: '200000'
+          gas: '200000',
+          granter: undefined,
+          payer: undefined
         };
         
         console.log('Using fee:', fee);
         
         // Create a custom HTTP client that uses our proxy
-        const httpClient = new ProxyHttpClient('https://trusttrip.onrender.com/api/proxy/cheqd-rpc');
+        const rpcEndpoint = 'https://trusttrip.onrender.com/api/proxy/cheqd-rpc';
+        const httpClient = new ProxyHttpClient(rpcEndpoint);
+        
+        console.log(`Using RPC endpoint: ${rpcEndpoint}`);
         
         // Get the signing client with our custom HTTP client
         const client = await SigningStargateClient.connectWithSigner(
-          'https://trusttrip.onrender.com/api/proxy/cheqd-rpc', // This URL is still needed but will be overridden by our custom client
+          rpcEndpoint,
           offlineSigner,
           { 
-            gasPrice: GasPrice.fromString('5.0ncheq'), // Use GasPrice helper for consistent formatting
-            httpClient: httpClient // Use our custom client
+            gasPrice: GasPrice.fromString('0.05ncheq'), // Lower gas price for testnet
+            httpClient: httpClient,
+            broadcastPollIntervalMs: 1000,
+            broadcastTimeoutMs: 30000
           }
         );
         
@@ -176,15 +186,24 @@ const WalletTransaction = ({ walletAddress, amount, recipient, onSuccess, onCanc
       } catch (error) {
         console.log('Error with direct transaction method:', error);
         
+        // Enhanced error logging
+        if (error.response) {
+          console.error('Error response data:', error.response.data);
+          console.error('Error response status:', error.response.status);
+        }
+        
         // Check if transaction was declined by user
-        if (error.message && error.message.includes('Transaction declined')) {
+        if (error.message && (error.message.includes('Transaction declined') || error.message.includes('Request rejected'))) {
           console.log('Transaction was declined by the user in their wallet');
           setStatus('error');
           setError('Transaction was declined. Please approve the transaction in your wallet to complete the booking.');
+          if (onCancel) onCancel();
+          return;
         }
         
         // Check if it's a fee-related error
-        else if (error.message && error.message.includes('fee is not a subset of required fees')) {
+        else if (error.message && (error.message.includes('fee is not a subset of required fees') || 
+                                 error.message.includes('insufficient fees'))) {
           console.log('Fee error detected. Required fees not met.');
           const match = error.message.match(/required: ([\d]+)([a-zA-Z]+)/);
           if (match) {
