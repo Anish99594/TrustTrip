@@ -5,7 +5,7 @@
 Welcome to **TrustTrip**, a groundbreaking **decentralized travel booking platform** that leverages **AI** and **verifiable credentials** to revolutionize travel planning. Built on the **cheqd blockchain**, TrustTrip combines secure identity verification, AI-driven booking recommendations, and Web3 technology to empower travelers and providers. Whether you're booking a flight or a hotel, TrustTrip ensures **trust**, **transparency**, and a **seamless experience**. 🚀
 
 - 🔗 **Live App**: [https://trust-trip.vercel.app/](https://trust-trip.vercel.app/)
-- 🎥 **Demo Video**: [https://youtu.be/C6lUZz2vI4M](https://youtu.be/C6lUZz2vI4M)
+- 🎥 **Demo Video**: [https://youtu.be/gOGagwIgz90](https://youtu.be/gOGagwIgz90)
 - 💻 **Source Code**: [https://github.com/Anish99594/TrustTrip.git](https://github.com/Anish99594/TrustTrip.git)
 
 This README provides everything you need to understand, deploy, and contribute to TrustTrip. **Let’s travel smarter together!** 💎
